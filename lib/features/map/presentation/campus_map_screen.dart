@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'ar_navigation_screen.dart';
 
 class CampusMapScreen extends StatefulWidget {
   const CampusMapScreen({super.key});
@@ -33,7 +34,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       "category": "Academic",
       "description": "Main campus library with study areas and archives.",
       "latLng": LatLng(7.359008, 125.706665),
-      "rooms": ["Reading Hall", "Archives", "Research Room"]
+      "rooms": ["Reading Hall", "Archives", "Research Room"],
     },
     {
       "name": "Admin Building",
@@ -43,8 +44,8 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       "rooms": [
         "Room 101 – Registrar’s Office",
         "Room 102 – Faculty Room",
-        "Room 103 – IT Support"
-      ]
+        "Room 103 – IT Support",
+      ],
     },
     {
       "name": "Science Building",
@@ -54,8 +55,8 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       "rooms": [
         "Room 201 – Physics Lab",
         "Room 202 – Chemistry Lab",
-        "Room 203 – Biology Lab"
-      ]
+        "Room 203 – Biology Lab",
+      ],
     },
     {
       "name": "Technology Building",
@@ -65,15 +66,15 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       "rooms": [
         "Room 301 – Computer Lab A",
         "Room 302 – Computer Lab B",
-        "Room 303 – Robotics Room"
-      ]
+        "Room 303 – Robotics Room",
+      ],
     },
     {
       "name": "Gymnasium",
       "category": "Recreational",
       "description": "Indoor gym for sports and school events.",
       "latLng": LatLng(7.358104, 125.706301),
-      "rooms": ["Main Court", "Locker Room", "Equipment Storage"]
+      "rooms": ["Main Court", "Locker Room", "Equipment Storage"],
     },
     {
       "name": "Student Center",
@@ -83,15 +84,15 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       "rooms": [
         "Room 401 – Guidance Office",
         "Room 402 – Student Affairs",
-        "Room 403 – Lounge"
-      ]
+        "Room 403 – Lounge",
+      ],
     },
     {
       "name": "Cafeteria",
       "category": "Service",
       "description": "Dining area for students and faculty.",
       "latLng": LatLng(7.358470, 125.706246),
-      "rooms": ["Main Dining Area", "Kitchen", "Storage Room"]
+      "rooms": ["Main Dining Area", "Kitchen", "Storage Room"],
     },
     {
       "name": "Senior High Building",
@@ -101,28 +102,29 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       "rooms": [
         "Room 501 – Grade 11 STEM",
         "Room 502 – Grade 12 HUMSS",
-        "Room 503 – Faculty Lounge"
-      ]
+        "Room 503 – Faculty Lounge",
+      ],
     },
     {
       "name": "Clinic",
       "category": "Health Services",
       "description": "Provides basic medical services and first aid.",
       "latLng": LatLng(7.358789, 125.705915),
-      "rooms": ["Consultation Room", "First Aid Room", "Pharmacy"]
+      "rooms": ["Consultation Room", "First Aid Room", "Pharmacy"],
     },
     {
       "name": "Covered Court",
       "category": "Recreational",
       "description": "Open-air court for events and PE classes.",
       "latLng": LatLng(7.359130, 125.705560),
-      "rooms": ["Court Area", "Announcers Booth", "Storage"]
+      "rooms": ["Court Area", "Announcers Booth", "Storage"],
     },
   ];
 
   List<Map<String, dynamic>> get filteredBuildings {
     return buildings.where((b) {
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           b["name"].toLowerCase().contains(_searchQuery) ||
           (b["rooms"] as List).any(
             (room) => room.toLowerCase().contains(_searchQuery),
@@ -161,8 +163,9 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
                         ),
                         fillColor: Colors.white,
                         filled: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
                       ),
                       style: const TextStyle(fontSize: 14),
                       onChanged: (value) {
@@ -201,8 +204,10 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
                     dropdownColor: Colors.grey[200],
                     style: const TextStyle(fontSize: 14, color: Colors.black),
                     items: categories
-                        .map((cat) =>
-                            DropdownMenuItem(value: cat, child: Text(cat)))
+                        .map(
+                          (cat) =>
+                              DropdownMenuItem(value: cat, child: Text(cat)),
+                        )
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -245,8 +250,9 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.black,
-                            backgroundColor:
-                                Colors.white.withOpacity(0.1), // Light label
+                            backgroundColor: Colors.white.withOpacity(
+                              0.1,
+                            ), // Light label
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -290,8 +296,10 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
             children: [
               Text(building["description"]),
               const SizedBox(height: 16),
-              const Text("Rooms:",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                "Rooms:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               ...List.generate(
                 building["rooms"].length,
@@ -304,9 +312,15 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text("Navigation started to ${building["name"]}"),
-              ));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ARNavigationScreen(
+                    buildingName: building["name"],
+                    destination: building["latLng"],
+                  ),
+                ),
+              );
             },
             child: const Text("Start Navigation"),
           ),
