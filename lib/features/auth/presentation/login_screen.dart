@@ -14,7 +14,7 @@ class LoginScreen extends ConsumerWidget {
     final formKey = GlobalKey<FormState>();
     final isLoading = ref.watch(loginStateProvider);
 
-    final primaryColor =  const Color(0xFF1C2A40);
+    final primaryColor = const Color(0xFF1C2A40);
 
     return Scaffold(
       body: SafeArea(
@@ -35,7 +35,7 @@ class LoginScreen extends ConsumerWidget {
                       child: Transform.scale(
                         scale: 1.6,
                         child: Image.asset(
-                          'assets/images/navistfind.png',
+                          'assets/images/navistfind_logo.png',
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -161,46 +161,47 @@ class LoginScreen extends ConsumerWidget {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed:
-                          isLoading
-                              ? null
-                              : () async {
-                                if (formKey.currentState!.validate()) {
-                                  ref.read(loginStateProvider.notifier).state =
-                                      true;
-                                  final error = await ref
-                                      .read(authProvider)
-                                      .login(
-                                        emailController.text.trim(),
-                                        passwordController.text.trim(),
-                                      );
-                                  ref.read(loginStateProvider.notifier).state =
-                                      false;
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              if (formKey.currentState!.validate()) {
+                                ref.read(loginStateProvider.notifier).state =
+                                    true;
+                                final error = await ref
+                                    .read(authProvider)
+                                    .login(
+                                      emailController.text.trim(),
+                                      passwordController.text.trim(),
+                                    );
+                                ref.read(loginStateProvider.notifier).state =
+                                    false;
 
-                                  if (error == null) {
-                                    ref.invalidate(profileInfoProvider);
-                                    ref.invalidate(postedItemsProvider);
+                                if (error == null) {
+                                  ref.invalidate(profileInfoProvider);
+                                  ref.invalidate(postedItemsProvider);
 
-                                    Navigator.pushReplacementNamed(
-                                      context,
-                                      AppRoutes.home,
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Login Successful'),
-                                        backgroundColor: Colors.blue,
-                                      ),
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(error),
-                                        backgroundColor: Colors.redAccent.shade700,
-                                      ),
-                                    );
-                                  }
+                                  Navigator.pushReplacementNamed(
+                                    context,
+                                    AppRoutes.home,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Login successful'),
+                                      backgroundColor: Color(0xFF2E7D32),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(error),
+                                      backgroundColor: Color(0xFFC62828),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
                                 }
-                              },
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
@@ -209,25 +210,24 @@ class LoginScreen extends ConsumerWidget {
                         ),
                         elevation: 0,
                       ),
-                      child:
-                          isLoading
-                              ? SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              )
-                              : const Text(
-                                'Sign In',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                      child: isLoading
+                          ? SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
                                 ),
                               ),
+                            )
+                          : const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
 

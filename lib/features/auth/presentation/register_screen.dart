@@ -15,7 +15,7 @@ class RegisterScreen extends ConsumerWidget {
     final formKey = GlobalKey<FormState>();
     final isLoading = ref.watch(registerStateProvider);
 
-    final primaryColor =const Color(0xFF1C2A40);
+    final primaryColor = const Color(0xFF1C2A40);
 
     return Scaffold(
       body: SafeArea(
@@ -35,7 +35,7 @@ class RegisterScreen extends ConsumerWidget {
                       child: Transform.scale(
                         scale: 1.6,
                         child: Image.asset(
-                          'assets/images/navistfind.png',
+                          'assets/images/navistfind_logo.png',
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -225,44 +225,45 @@ class RegisterScreen extends ConsumerWidget {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed:
-                          isLoading
-                              ? null
-                              : () async {
-                                if (formKey.currentState!.validate()) {
-                                  ref
-                                      .read(registerStateProvider.notifier)
-                                      .state = true;
-                                  final error = await ref
-                                      .read(authProvider)
-                                      .register(
-                                        fullNameController.text.trim(),
-                                        emailController.text.trim(),
-                                        passwordController.text.trim(),
-                                      );
-                                  ref
-                                      .read(registerStateProvider.notifier)
-                                      .state = false;
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              if (formKey.currentState!.validate()) {
+                                ref.read(registerStateProvider.notifier).state =
+                                    true;
+                                final error = await ref
+                                    .read(authProvider)
+                                    .register(
+                                      fullNameController.text.trim(),
+                                      emailController.text.trim(),
+                                      passwordController.text.trim(),
+                                    );
+                                ref.read(registerStateProvider.notifier).state =
+                                    false;
 
-                                  if (error == null) {
-                                    Navigator.pushReplacementNamed(
-                                      context,
-                                      AppRoutes.home,
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Registration Successful',
-                                        ),
-                                      ),
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(error)),
-                                    );
-                                  }
+                                if (error == null) {
+                                  Navigator.pushReplacementNamed(
+                                    context,
+                                    AppRoutes.home,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Registration successful'),
+                                      backgroundColor: Color(0xFF2E7D32),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(error),
+                                      backgroundColor: Color(0xFFC62828),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
                                 }
-                              },
+                              }
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
@@ -271,25 +272,24 @@ class RegisterScreen extends ConsumerWidget {
                         ),
                         elevation: 0,
                       ),
-                      child:
-                          isLoading
-                              ? SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                ),
-                              )
-                              : const Text(
-                                'Create Account',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                      child: isLoading
+                          ? SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
                                 ),
                               ),
+                            )
+                          : const Text(
+                              'Create Account',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:navistfind/features/item/presentation/claim_item.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -33,7 +32,7 @@ class NotificationsScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color:  const Color(0xFF1C2A40),
+                  color: Color(0xFF1C2A40),
                 ),
               ),
               const SizedBox(height: 10),
@@ -59,16 +58,16 @@ class NotificationsScreen extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ClaimItemPage(),
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Open the matched item to claim.'),
                           ),
                         );
                       },
                       icon: const Icon(Icons.assignment_turned_in),
                       label: const Text("Claim"),
-                       style: ElevatedButton.styleFrom(
+                      style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[50],
                       ),
                     ),
@@ -95,7 +94,7 @@ class NotificationsScreen extends StatelessWidget {
             children: [
               const Icon(
                 Icons.notifications_active,
-                color:  const Color(0xFF1C2A40),
+                color: Color(0xFF1C2A40),
                 size: 32,
               ),
               const SizedBox(width: 12),
@@ -133,14 +132,14 @@ class NotificationsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.chat_bubble_outline, color:  Color(0xFF1C2A40)),
+            const Icon(Icons.chat_bubble_outline, color: Color(0xFF1C2A40)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
                   Text(
-                    "📩 Message from Admin",
+                    "Message from Admin",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 4),
@@ -161,7 +160,7 @@ class NotificationsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor:  const Color(0xFF1C2A40),
+        backgroundColor: const Color(0xFF1C2A40),
         title: const Text(
           "Notifications",
           style: TextStyle(color: Colors.white),

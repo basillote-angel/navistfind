@@ -1,12 +1,9 @@
-import 'package:navistfind/core/constants.dart';
 import 'package:navistfind/features/auth/application/auth_provider.dart';
-import 'package:navistfind/features/item/presentation/ai_match_card.dart';
-import 'package:navistfind/features/item/presentation/item_details_screen.dart';
-import 'package:navistfind/features/item/presentation/matched_items_modal.dart';
-import 'package:navistfind/features/post-item/domain/enums/item_type.dart';
+import 'package:navistfind/features/lost_found/item/presentation/item_details_screen.dart';
+import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/profile/application/profile_provider.dart';
 import 'package:navistfind/features/profile/domain/models/posted-item.dart';
-import 'package:navistfind/features/post-item/presentation/edit_item_screen.dart';
+import 'package:navistfind/features/lost_found/post-item/presentation/edit_item_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -166,12 +163,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             data: (postedItems) {
-              final filteredItems = _getFilteredItems(
-                postedItems,
-                currentFilter,
+              // Always work on a mutable copy to avoid modifying provider-owned lists
+              final List<PostedItem> filteredItems = [
+                ..._getFilteredItems(postedItems, currentFilter),
+              ];
+              // Sort on a local copy to avoid touching provider's list
+              final List<PostedItem> sorted = List<PostedItem>.from(
+                filteredItems,
               );
-              // Sort: matched items first, then by most recent
-              filteredItems.sort((a, b) {
+              sorted.sort((a, b) {
                 final aHasMatch =
                     (a.matchedItem.highestBest ?? a.matchedItem.lowerBest) !=
                     null;
@@ -374,8 +374,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
-                          (context, idx) => _buildItemCard(filteredItems[idx]),
-                          childCount: filteredItems.length,
+                          (context, idx) => _buildItemCard(sorted[idx]),
+                          childCount: sorted.length,
                         ),
                       ),
                     ),
@@ -390,9 +390,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   // Item Card
   Widget _buildItemCard(PostedItem item) {
-    final bestMatch =
-        item.matchedItem.highestBest ?? item.matchedItem.lowerBest;
-    final hasMatch = bestMatch != null;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(

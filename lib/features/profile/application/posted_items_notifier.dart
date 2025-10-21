@@ -13,15 +13,21 @@ class PostedItemsNotifier extends StateNotifier<AsyncValue<List<PostedItem>>> {
     try {
       final items = await _service.fetchPostedItems();
       state = AsyncData(items);
-    } catch (e, st) {
-      state = AsyncError(e, st);
+    } catch (e) {
+      // Fail-soft: on server errors, show empty list instead of crashing the tab
+      // Still log the error for debugging
+      // ignore: avoid_print
+      print('postedItems load error: $e');
+      state = const AsyncData(<PostedItem>[]);
     }
   }
 
   Future<String?> deleteItem(int id) async {
     try {
       await _service.deleteItem(id);
-      state = AsyncData((state.value ?? []).where((item) => item.id != id).toList());
+      state = AsyncData(
+        (state.value ?? []).where((item) => item.id != id).toList(),
+      );
       return null;
     } catch (e) {
       return 'Failed to delete item';

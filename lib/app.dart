@@ -1,4 +1,5 @@
 import 'package:navistfind/core/navigation/app_routes.dart';
+import 'package:navistfind/widgets/performance_monitor.dart';
 import 'package:flutter/material.dart';
 
 class MyApp extends StatelessWidget {
@@ -33,8 +34,12 @@ class MyApp extends StatelessWidget {
           backgroundColor: Color(0xFF1C2A40),
         ),
       ),
-      initialRoute: AppRoutes.checkAuth,
+      initialRoute: AppRoutes.splash,
       routes: AppRoutes.routes,
+      builder: (context, child) => PerformanceMonitor(
+        enabled: false,
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

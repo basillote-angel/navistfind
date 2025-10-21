@@ -1,5 +1,4 @@
 import 'package:camera/camera.dart';
-import 'package:navistfind/main.dart';
 import 'package:flutter/material.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -10,51 +9,67 @@ class ExploreScreen extends StatefulWidget {
 }
 
 class _ExploreScreenState extends State<ExploreScreen> {
-  late CameraController controller;
+  CameraController? controller;
+  bool _initializing = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
+    _initCamera();
+  }
 
-    controller = CameraController(cameras[0], ResolutionPreset.max);
-
-    controller
-        .initialize()
-        .then((_) {
-          if (!mounted) {
-            return;
-          }
-          setState(() {});
-        })
-        .catchError((Object e) {
-          if (e is CameraException) {
-            switch (e.code) {
-              case 'CameraAccessDenied':
-                debugPrint('Camera access was denied');
-                break;
-              default:
-                debugPrint('Camera error: ${e.description}');
-                break;
-            }
-          }
+  Future<void> _initCamera() async {
+    try {
+      final cams = await availableCameras();
+      if (cams.isEmpty) {
+        setState(() {
+          _error = 'No camera available';
+          _initializing = false;
         });
+        return;
+      }
+      final cam = cams.first;
+      final ctrl = CameraController(cam, ResolutionPreset.max);
+      await ctrl.initialize();
+      if (!mounted) {
+        await ctrl.dispose();
+        return;
+      }
+      setState(() {
+        controller = ctrl;
+        _initializing = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _initializing = false;
+      });
+    }
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!controller.value.isInitialized) {
-      return Container();
+    if (_initializing) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_error != null ||
+        controller == null ||
+        !controller!.value.isInitialized) {
+      return Scaffold(
+        body: Center(child: Text(_error ?? 'Failed to initialize camera')),
+      );
     }
     return Scaffold(
       body: Stack(
         children: [
-          SizedBox.expand(child: CameraPreview(controller)),
+          SizedBox.expand(child: CameraPreview(controller!)),
 
           // Floating back button
           Positioned(

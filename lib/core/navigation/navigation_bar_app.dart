@@ -1,30 +1,34 @@
-import 'package:navistfind/features/home/presentation/home_screen.dart';
-import 'package:navistfind/features/map/presentation/campus_map_screen.dart';
-import 'package:navistfind/features/notifications/presentation/notification_screen.dart';
-import 'package:navistfind/features/post-item/presentation/post_item_screen.dart';
+import 'package:navistfind/features/home/presentation/home_page.dart';
+import 'package:navistfind/features/navigate/presentation/campus_map_screen.dart';
 import 'package:navistfind/features/profile/presentation/profile_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:navistfind/features/lost_found/item/presentation/lost_and_found.dart';
 
 class NavigationBarApp extends StatefulWidget {
-  const NavigationBarApp({super.key});
+  final int initialIndex;
+  final int lostFoundInitialTabIndex;
+  const NavigationBarApp({
+    super.key,
+    this.initialIndex = 0,
+    this.lostFoundInitialTabIndex = 0,
+  });
 
   @override
   State<NavigationBarApp> createState() => NavigationBarAppState();
 }
 
 class NavigationBarAppState extends State<NavigationBarApp> {
-  int currentIndex = 0;
+  late int currentIndex;
 
-  final List<Widget> screens = [
-    const HomeScreen(),
-     CampusMapScreen(),
-    const PostItemScreen(),
-     NotificationsScreen(),
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final screens = _buildScreens();
     return Scaffold(
       body: screens[currentIndex],
       bottomNavigationBar: Container(
@@ -50,19 +54,18 @@ class NavigationBarAppState extends State<NavigationBarApp> {
             ),
             buildNavItem(
               index: 1,
+              icon: Icons.inventory_2_outlined,
+              activeIcon: Icons.inventory_2_rounded,
+              label: 'Lost & Found',
+            ),
+            buildNavItem(
+              index: 2,
               icon: Icons.map_outlined,
               activeIcon: Icons.map_rounded,
               label: 'Navigate',
             ),
-            buildPostNavItem(),
             buildNavItem(
               index: 3,
-              icon: Icons.notifications_active_outlined,
-              activeIcon: Icons.notifications_active_rounded,
-              label: 'Heads Up',
-            ),
-            buildNavItem(
-              index: 4,
               icon: Icons.person_outline_rounded,
               activeIcon: Icons.person_rounded,
               label: 'Profile',
@@ -71,6 +74,15 @@ class NavigationBarAppState extends State<NavigationBarApp> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildScreens() {
+    return [
+      const HomePage(),
+      LostAndFoundScreen(initialTabIndex: widget.lostFoundInitialTabIndex),
+      const CampusMapScreen(),
+      const ProfileScreen(),
+    ];
   }
 
   // Common navigation bar item
@@ -82,10 +94,10 @@ class NavigationBarAppState extends State<NavigationBarApp> {
   }) {
     final isSelected = currentIndex == index;
     final primaryColor = Theme.of(context).primaryColor;
-    final backgroundColor = isSelected 
-        ? primaryColor.withOpacity(0.1) 
+    final backgroundColor = isSelected
+        ? primaryColor.withOpacity(0.1)
         : Colors.transparent;
-    
+
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => currentIndex = index),
@@ -125,6 +137,9 @@ class NavigationBarAppState extends State<NavigationBarApp> {
               const SizedBox(height: 4),
               Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
@@ -138,60 +153,4 @@ class NavigationBarAppState extends State<NavigationBarApp> {
       ),
     );
   }
-
-  // Exclusive for post navigation bar item
-  Widget buildPostNavItem() {
-    final primaryColor = Theme.of(context).primaryColor;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () async {
-          // Navigate to CreatePostScreen and wait for the result
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const PostItemScreen()),
-          );
-
-          // Check if we got a result indicating navigation back
-          if (result == true) {
-            setState(() {
-              currentIndex = 0; // Navigate back to Home or any screen you prefer
-            });
-          }
-        },
-        child: Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 52,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: primaryColor,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryColor.withOpacity(0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 2),
-                      spreadRadius: -2,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 4),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
-

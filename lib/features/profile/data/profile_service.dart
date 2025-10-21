@@ -9,7 +9,7 @@ class ProfileService {
 
       print('Response status code: ${response.statusCode}');
       print('Response data: ${response.data}');
-      
+
       if (response.statusCode == 200) {
         final data = response.data;
         return User.fromJson(data);
@@ -25,24 +25,55 @@ class ProfileService {
   Future<List<PostedItem>> fetchPostedItems() async {
     try {
       final response = await ApiClient.client.get('/api/me/items');
+      final status = response.statusCode ?? 500;
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        print('Posted items: $data');
-        return data.map((item) => PostedItem.fromJson(item)).toList();
-      } else {
-        throw Exception('Failed to load posted items');
+      if (status == 200) {
+        final body = response.data;
+        if (body is List) {
+          final List<PostedItem> parsed = [];
+          for (final e in body) {
+            if (e is Map) {
+              try {
+                parsed.add(PostedItem.fromJson(Map<String, dynamic>.from(e)));
+              } catch (_) {
+                // skip bad rows
+              }
+            }
+          }
+          return parsed;
+        }
+        if (body is Map && body['data'] is List) {
+          final list = body['data'] as List;
+          final List<PostedItem> parsed = [];
+          for (final e in list) {
+            if (e is Map) {
+              try {
+                parsed.add(PostedItem.fromJson(Map<String, dynamic>.from(e)));
+              } catch (_) {
+                // skip bad rows
+              }
+            }
+          }
+          return parsed;
+        }
+        return <PostedItem>[];
       }
+
+      if (status == 204 || status == 404) {
+        return <PostedItem>[];
+      }
+
+      throw Exception('Failed to load posted items (status: $status)');
     } catch (e) {
       print('Error: $e');
       rethrow;
     }
   }
-  Future<void> deleteItem(int id) async {
-  final response = await ApiClient.client.delete('/api/items/$id');
-  if (response.statusCode != 200) {
-    throw Exception('Failed to delete item');
-  }
-}
 
+  Future<void> deleteItem(int id) async {
+    final response = await ApiClient.client.delete('/api/items/$id');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete item');
+    }
+  }
 }
