@@ -14,6 +14,9 @@ import 'package:navistfind/features/profile/application/profile_provider.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/features/lost_found/item/presentation/item_helpers.dart';
 import 'package:navistfind/features/lost_found/item/domain/enums/item_status.dart';
+import 'package:navistfind/widgets/status_chip.dart';
+import 'package:navistfind/features/lost_found/item/presentation/item_dialogs.dart';
+import 'package:navistfind/core/utils/snackbar_utils.dart';
 
 void showItemDetailsModal(BuildContext context, int itemId) {
   showDialog(
@@ -172,30 +175,10 @@ class ItemDetailsModal extends ConsumerWidget {
                                             ),
                                           ),
                                           // Status Badge
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: _getStatusColor(
-                                                item.status,
-                                              ).withOpacity(0.15),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    AppTheme.radiusSmall,
-                                                  ),
-                                            ),
-                                            child: Text(
-                                              _getStatusLabel(item.status),
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: _getStatusColor(
-                                                  item.status,
-                                                ),
-                                              ),
-                                            ),
+                                          StatusChip(
+                                            status: item.status,
+                                            itemType: item.type,
+                                            fontSize: 11,
                                           ),
                                         ],
                                       ),
@@ -227,7 +210,7 @@ class ItemDetailsModal extends ConsumerWidget {
                                           onSelected: (value) async {
                                             if (value == 'edit') {
                                               if (!canEditDelete) {
-                                                _showCannotEditDialog(
+                                                ItemDialogs.showCannotEditDialog(
                                                   context,
                                                   item.status,
                                                 );
@@ -271,16 +254,16 @@ class ItemDetailsModal extends ConsumerWidget {
                                               );
                                             } else if (value == 'delete') {
                                               if (!canEditDelete) {
-                                                _showCannotDeleteDialog(
+                                                ItemDialogs.showCannotDeleteDialog(
                                                   context,
                                                   item.status,
                                                 );
                                                 return;
                                               }
                                               final confirmed =
-                                                  await _showDeleteConfirmationDialog(
+                                                  await ItemDialogs.showDeleteConfirmationDialog(
                                                     context,
-                                                    item,
+                                                    title: item.title,
                                                   );
                                               if (confirmed == true) {
                                                 try {
@@ -292,120 +275,24 @@ class ItemDetailsModal extends ConsumerWidget {
                                                       .deleteItem(item.id);
                                                   if (err == null) {
                                                     if (context.mounted) {
-                                                      ScaffoldMessenger.of(
+                                                      SnackbarUtils.showItemDeleted(
                                                         context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: const Row(
-                                                            children: [
-                                                              Icon(
-                                                                Icons
-                                                                    .check_circle,
-                                                                color: Colors
-                                                                    .white,
-                                                              ),
-                                                              SizedBox(
-                                                                width: 8,
-                                                              ),
-                                                              Text(
-                                                                'Item deleted successfully',
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          backgroundColor:
-                                                              AppTheme
-                                                                  .successGreen,
-                                                          behavior:
-                                                              SnackBarBehavior
-                                                                  .floating,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  AppTheme
-                                                                      .radiusMedium,
-                                                                ),
-                                                          ),
-                                                          duration:
-                                                              const Duration(
-                                                                seconds: 3,
-                                                              ),
-                                                        ),
                                                       );
                                                       Navigator.pop(context);
                                                     }
                                                   } else {
                                                     if (context.mounted) {
-                                                      ScaffoldMessenger.of(
+                                                      SnackbarUtils.showError(
                                                         context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: Row(
-                                                            children: [
-                                                              const Icon(
-                                                                Icons
-                                                                    .error_outline,
-                                                                color: Colors
-                                                                    .white,
-                                                              ),
-                                                              const SizedBox(
-                                                                width: 8,
-                                                              ),
-                                                              Expanded(
-                                                                child: Text(
-                                                                  err,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          backgroundColor:
-                                                              AppTheme.errorRed,
-                                                          behavior:
-                                                              SnackBarBehavior
-                                                                  .floating,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  AppTheme
-                                                                      .radiusMedium,
-                                                                ),
-                                                          ),
-                                                        ),
+                                                        err,
                                                       );
                                                     }
                                                   }
                                                 } catch (e) {
                                                   if (context.mounted) {
-                                                    ScaffoldMessenger.of(
+                                                    SnackbarUtils.showError(
                                                       context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: const Row(
-                                                          children: [
-                                                            Icon(
-                                                              Icons
-                                                                  .error_outline,
-                                                              color:
-                                                                  Colors.white,
-                                                            ),
-                                                            SizedBox(width: 8),
-                                                            Text(
-                                                              'Failed to delete item',
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        backgroundColor:
-                                                            AppTheme.errorRed,
-                                                        behavior:
-                                                            SnackBarBehavior
-                                                                .floating,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                AppTheme
-                                                                    .radiusMedium,
-                                                              ),
-                                                        ),
-                                                      ),
+                                                      'Failed to delete item',
                                                     );
                                                   }
                                                 }
@@ -1106,38 +993,6 @@ class ItemDetailsModal extends ConsumerWidget {
     );
   }
 
-  /// Get status color
-  Color _getStatusColor(ItemStatus status) {
-    switch (status) {
-      case ItemStatus.open:
-        return AppTheme.primaryBlue;
-      case ItemStatus.matched:
-        return AppTheme.goldenAccent;
-      case ItemStatus.returned:
-        return AppTheme.successGreen;
-      case ItemStatus.closed:
-        return AppTheme.textGray;
-      case ItemStatus.unclaimed:
-        return AppTheme.errorRed;
-    }
-  }
-
-  /// Get status label
-  String _getStatusLabel(ItemStatus status) {
-    switch (status) {
-      case ItemStatus.open:
-        return 'Open';
-      case ItemStatus.matched:
-        return 'Matched';
-      case ItemStatus.returned:
-        return 'Returned';
-      case ItemStatus.closed:
-        return 'Closed';
-      case ItemStatus.unclaimed:
-        return 'Unclaimed';
-    }
-  }
-
   /// Get edit disabled reason
   String _getEditDisabledReason(ItemStatus status) {
     switch (status) {
@@ -1168,213 +1023,5 @@ class ItemDetailsModal extends ConsumerWidget {
       case ItemStatus.open:
         return '';
     }
-  }
-
-  /// Show dialog when edit is not allowed
-  void _showCannotEditDialog(BuildContext context, ItemStatus status) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: AppTheme.warningOrange, size: 24),
-            const SizedBox(width: 12),
-            const Text('Cannot Edit Item'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This item cannot be edited because it has already been ${_getStatusLabel(status).toLowerCase()}.',
-              style: AppTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.softYellow,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.tips_and_updates_outlined,
-                    color: AppTheme.warningOrange,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Only items with "Open" status can be edited.',
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Show dialog when delete is not allowed
-  void _showCannotDeleteDialog(BuildContext context, ItemStatus status) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: AppTheme.errorRed,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            const Text('Cannot Delete Item'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This item cannot be deleted because it has already been ${_getStatusLabel(status).toLowerCase()}.',
-              style: AppTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.errorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppTheme.errorRed, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Only items with "Open" status can be deleted.',
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.errorRed,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Show enhanced delete confirmation dialog
-  Future<bool?> _showDeleteConfirmationDialog(BuildContext context, Item item) {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.errorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Icon(
-                Icons.delete_outline,
-                color: AppTheme.errorRed,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Delete Item?')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              item.title,
-              style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w700),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'This action cannot be undone. The item will be permanently removed from the system.',
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.textGray),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: AppTheme.textGray,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorRed,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-            ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

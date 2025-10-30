@@ -11,6 +11,9 @@ import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.
 import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/core/utils/date_formatter.dart';
 import 'how_to_claim_screen.dart';
+import 'package:navistfind/widgets/section_header.dart';
+import 'package:navistfind/widgets/loading_placeholders.dart';
+import 'package:navistfind/features/notifications/presentation/notification_screen.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({
@@ -113,7 +116,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                   Icons.notifications_none_rounded,
                   color: Colors.white,
                 ),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
+                  );
+                },
               ),
               if (widget.unreadNotifications > 0)
                 Positioned(
@@ -326,8 +335,13 @@ class _HomePageState extends ConsumerState<HomePage> {
       children: [
         Row(
           children: [
-            Text('Smart Recommendations', style: AppTheme.heading3),
-            const Spacer(),
+            const Expanded(
+              child: SectionHeader(
+                title: 'Smart Recommendations',
+                icon: Icons.auto_awesome,
+              ),
+            ),
+            const SizedBox(width: 8),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pushNamed('/recommendations');
@@ -351,22 +365,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     AsyncValue<List<MatchScoreItem>> recommendedAsync,
   ) {
     return recommendedAsync.when(
-      loading: () => SizedBox(
-        height: 240,
-        child: ListView.separated(
-          padding: EdgeInsets.zero,
-          scrollDirection: Axis.horizontal,
-          itemCount: 3,
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
-          itemBuilder: (_, __) => Container(
-            width: 100,
-            decoration: BoxDecoration(
-              color: AppTheme.lightGray,
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        ),
-      ),
+      loading: () => const LoadingHorizontalCardsPlaceholder(),
       error: (_, __) => const SizedBox.shrink(),
       data: (matches) {
         final sorted = [...matches]..sort((a, b) => b.score.compareTo(a.score));

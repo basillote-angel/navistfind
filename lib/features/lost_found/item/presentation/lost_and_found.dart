@@ -14,6 +14,13 @@ import 'package:navistfind/widgets/item_card.dart';
 import 'package:navistfind/widgets/posted_item_card.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/core/utils/category_utils.dart';
+import 'package:navistfind/core/utils/status_utils.dart';
+import 'package:navistfind/features/lost_found/item/presentation/item_dialogs.dart';
+import 'package:navistfind/widgets/action_sheet_button.dart';
+import 'package:navistfind/widgets/status_header.dart';
+import 'package:navistfind/widgets/section_header.dart';
+import 'package:navistfind/widgets/empty_state.dart';
+import 'package:navistfind/widgets/loading_placeholders.dart';
 
 // Lost & Found screen
 
@@ -296,58 +303,18 @@ class _MyPostsTab extends ConsumerWidget {
     String status,
     List<PostedItem> items,
   ) {
-    final statusIcon = _getStatusIcon(status);
-    final statusColor = _getStatusColor(status);
+    final statusIcon = getStatusIconFromString(status);
+    final statusColor = getStatusColorFromString(status);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Status Header with Divider
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                    ),
-                    child: Icon(statusIcon, size: 20, color: statusColor),
-                  ),
-                  const SizedBox(width: AppTheme.spacingM),
-                  Text(
-                    _getUserFriendlyStatusLabel(status),
-                    style: AppTheme.heading4.copyWith(fontSize: 17),
-                  ),
-                  const SizedBox(width: AppTheme.spacingM),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingM,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                    ),
-                    child: Text(
-                      '${items.length}',
-                      style: AppTheme.caption.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppTheme.spacingM),
-              Divider(height: 1, thickness: 1, color: Colors.grey[200]),
-            ],
-          ),
+        // Status Header with Divider (reusable)
+        StatusHeader(
+          icon: statusIcon,
+          label: getUserFriendlyStatusLabelFromString(status),
+          count: items.length,
+          color: statusColor,
         ),
         // Horizontal Scrollable Cards
         SizedBox(
@@ -458,7 +425,7 @@ class _MyPostsTab extends ConsumerWidget {
               ),
               const Divider(height: 1),
               // Action buttons
-              _ActionButton(
+              ActionSheetButton(
                 icon: Icons.edit_outlined,
                 label: 'Edit',
                 enabled: canEditDelete,
@@ -478,10 +445,13 @@ class _MyPostsTab extends ConsumerWidget {
                       }
                     : () {
                         Navigator.pop(context);
-                        _showCannotEditDialog(outerContext, item.status);
+                        ItemDialogs.showCannotEditDialog(
+                          outerContext,
+                          item.status,
+                        );
                       },
               ),
-              _ActionButton(
+              ActionSheetButton(
                 icon: Icons.delete_outline,
                 label: 'Delete',
                 enabled: canEditDelete,
@@ -496,7 +466,10 @@ class _MyPostsTab extends ConsumerWidget {
                       }
                     : () {
                         Navigator.pop(context);
-                        _showCannotDeleteDialog(outerContext, item.status);
+                        ItemDialogs.showCannotDeleteDialog(
+                          outerContext,
+                          item.status,
+                        );
                       },
               ),
               const SizedBox(height: 8),
@@ -537,213 +510,13 @@ class _MyPostsTab extends ConsumerWidget {
     }
   }
 
-  void _showCannotEditDialog(BuildContext context, ItemStatus status) {
-    final statusLabel = _getStatusLabel(status);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: AppTheme.warningOrange, size: 24),
-            const SizedBox(width: 12),
-            const Text('Cannot Edit Item'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This item cannot be edited because it has already been ${statusLabel.toLowerCase()}.',
-              style: AppTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.softYellow,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.tips_and_updates_outlined,
-                    color: AppTheme.warningOrange,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Only items with "Open" status can be edited.',
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCannotDeleteDialog(BuildContext context, ItemStatus status) {
-    final statusLabel = _getStatusLabel(status);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: AppTheme.errorRed,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            const Text('Cannot Delete Item'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This item cannot be deleted because it has already been ${statusLabel.toLowerCase()}.',
-              style: AppTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.errorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppTheme.errorRed, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Only items with "Open" status can be deleted.',
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.errorRed,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _showDeleteConfirmation(
     BuildContext context,
     PostedItem item,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.errorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Icon(
-                Icons.delete_outline,
-                color: AppTheme.errorRed,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Delete Item?')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              item.name,
-              style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w700),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'This action cannot be undone. The item will be permanently removed from the system.',
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.textGray),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: AppTheme.textGray,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorRed,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-            ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await ItemDialogs.showDeleteConfirmationDialog(
+      context,
+      title: item.name,
     );
 
     if (confirmed == true && context.mounted) {
@@ -816,21 +589,6 @@ class _MyPostsTab extends ConsumerWidget {
     }
   }
 
-  String _getStatusLabel(ItemStatus status) {
-    switch (status) {
-      case ItemStatus.open:
-        return 'Open';
-      case ItemStatus.matched:
-        return 'Matched';
-      case ItemStatus.returned:
-        return 'Returned';
-      case ItemStatus.closed:
-        return 'Closed';
-      case ItemStatus.unclaimed:
-        return 'Unclaimed';
-    }
-  }
-
   Map<String, List<PostedItem>> _groupItemsByStatus(List<PostedItem> items) {
     final Map<String, List<PostedItem>> grouped = {};
 
@@ -872,124 +630,9 @@ class _MyPostsTab extends ConsumerWidget {
 
     return orderedGroups;
   }
-
-  IconData _getStatusIcon(String status) {
-    switch (status.toLowerCase()) {
-      case 'returned':
-      case 'claimed':
-        return Icons.check_circle;
-      case 'matched':
-        return Icons.search;
-      case 'open':
-      case 'unclaimed':
-        return Icons.search_off;
-      case 'closed':
-        return Icons.close;
-      default:
-        return Icons.inventory_2;
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'returned':
-      case 'claimed':
-        return AppTheme.successGreen;
-      case 'matched':
-        return AppTheme.primaryBlue;
-      case 'open':
-      case 'unclaimed':
-        return AppTheme.errorRed;
-      case 'closed':
-        return AppTheme.textGray;
-      default:
-        return AppTheme.primaryBlue;
-    }
-  }
-
-  String _getUserFriendlyStatusLabel(String status) {
-    switch (status.toLowerCase()) {
-      case 'returned':
-      case 'claimed':
-        return 'RETURNED';
-      case 'matched':
-        return 'POTENTIAL MATCHES';
-      case 'open':
-        return 'ACTIVE SEARCHES';
-      case 'unclaimed':
-        return 'NOT CLAIMED';
-      case 'closed':
-        return 'EXPIRED';
-      default:
-        return status.toUpperCase();
-    }
-  }
 }
 
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.color,
-    required this.enabled,
-    this.disabledReason,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color color;
-  final bool enabled;
-  final String? disabledReason;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Icon(icon, color: enabled ? color : AppTheme.textGray, size: 24),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: enabled ? color : AppTheme.textGray,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (disabledReason != null && !enabled) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      disabledReason!,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppTheme.textGray,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (!enabled)
-              Icon(
-                Icons.info_outline,
-                size: 18,
-                color: AppTheme.textGray.withOpacity(0.5),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// Local _ActionButton removed in favor of shared ActionSheetButton
 
 // CTA removed (FAB already exists)
 
@@ -1037,13 +680,13 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
     final bool isMyPostsTab = _tabController.index == 2;
 
     return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: PreferredSize(
+      backgroundColor: Colors.white,
+      appBar: PreferredSize(
         preferredSize: const Size.fromHeight(170),
-          child: SafeArea(
+        child: SafeArea(
           bottom: false,
-            child: Column(
-              children: [
+          child: Column(
+            children: [
               const SizedBox(height: 16), // Top margin
               // Top Bar with Search Bar Inside
               Padding(
@@ -1064,69 +707,69 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                     children: [
                       // Search Bar Inside Blue Container
                       Container(
-                                  height: 48,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(
                             AppTheme.radiusLarge,
-                                        ),
-                                      ),
+                          ),
+                        ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppTheme.spacingM,
                         ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
+                        child: Row(
+                          children: [
+                            const Icon(
                               Icons.search_rounded,
                               color: AppTheme.textGray,
-                                          ),
+                            ),
                             const SizedBox(width: AppTheme.spacingS),
-                                          Expanded(
-                                            child: TextField(
-                                              controller: _searchController,
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
                                 textInputAction: TextInputAction.search,
                                 onChanged: (v) {
-                                                setState(() {
+                                  setState(() {
                                     _searchQuery = v.toLowerCase();
-                                                });
-                                              },
+                                  });
+                                },
                                 onSubmitted: (v) {
-                                                setState(() {
+                                  setState(() {
                                     _searchQuery = v.trim().toLowerCase();
-                                                });
-                                              },
-                                              decoration: const InputDecoration(
+                                  });
+                                },
+                                decoration: const InputDecoration(
                                   hintText: 'Search lost or found items...',
-                                                hintStyle: TextStyle(
-                                                  color: AppTheme.textGray,
-                                                  fontSize: 15,
-                                                ),
-                                                border: InputBorder.none,
-                                                    ),
-                                style: AppTheme.bodyMedium,
-                                              ),
-                                            ),
-                            if (_searchQuery.isNotEmpty)
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.close,
-                                  color: AppTheme.textGray,
-                                              size: 20,
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _searchQuery = '';
-                                                _searchController.clear();
-                                              });
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                    ],
+                                  hintStyle: TextStyle(
+                                    color: AppTheme.textGray,
+                                    fontSize: 15,
                                   ),
+                                  border: InputBorder.none,
                                 ),
+                                style: AppTheme.bodyMedium,
                               ),
+                            ),
+                            if (_searchQuery.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: AppTheme.textGray,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _searchController.clear();
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
 
               // Tab Bar - Enhanced Segmented Control
@@ -1166,8 +809,8 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
-                    ],
-                  ),
+                      ],
+                    ),
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,
                     labelPadding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1215,11 +858,11 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                               child: Text(
                                 'My Posts',
                                 overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1230,12 +873,12 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-            physics: NeverScrollableScrollPhysics(),
-            children: [
-              _FoundTab(
-                searchQuery: _searchQuery,
-                filterStatus: _filterStatus,
-                recommendedAsync: recommendedAsync,
+        physics: NeverScrollableScrollPhysics(),
+        children: [
+          _FoundTab(
+            searchQuery: _searchQuery,
+            filterStatus: _filterStatus,
+            recommendedAsync: recommendedAsync,
             expandedCategories: _expandedCategories,
             onToggleCategory: (title) {
               setState(() {
@@ -1246,62 +889,62 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                 }
               });
             },
-              ),
-              _LostTab(
-                searchQuery: _searchQuery,
-                filterStatus: _filterStatus,
-                recommendedAsync: recommendedAsync,
-            expandedCategories: _expandedCategories,
-            onToggleCategory: (title) {
-              setState(() {
-                if (_expandedCategories.contains(title)) {
-                  _expandedCategories.remove(title);
-                } else {
-                  _expandedCategories.add(title);
-                }
-              });
-            },
-              ),
-              const _MyPostsTab(),
-            ],
           ),
+          _LostTab(
+            searchQuery: _searchQuery,
+            filterStatus: _filterStatus,
+            recommendedAsync: recommendedAsync,
+            expandedCategories: _expandedCategories,
+            onToggleCategory: (title) {
+              setState(() {
+                if (_expandedCategories.contains(title)) {
+                  _expandedCategories.remove(title);
+                } else {
+                  _expandedCategories.add(title);
+                }
+              });
+            },
+          ),
+          const _MyPostsTab(),
+        ],
+      ),
       floatingActionButton: isMyPostsTab
           ? Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.goldenAccent.withOpacity(0.4),
-                blurRadius: 20,
-                spreadRadius: 4,
-              ),
-              BoxShadow(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.goldenAccent.withOpacity(0.4),
+                    blurRadius: 20,
+                    spreadRadius: 4,
+                  ),
+                  BoxShadow(
                     color: AppTheme.primaryBlue.withOpacity(0.3),
-                blurRadius: 15,
-                spreadRadius: 2,
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: FloatingActionButton.extended(
+              child: FloatingActionButton.extended(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const PostItemScreen()),
                 ),
                 backgroundColor: AppTheme.primaryBlue,
-            extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
-            label: const Text(
-              'Post Item',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
+                extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
+                label: const Text(
+                  'Post Item',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
                     color: Colors.white,
-              ),
-            ),
-            icon: const Icon(
-              Icons.add_circle_outline,
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.add_circle_outline,
                   color: Colors.white,
-              size: 26,
-            ),
-          ),
+                  size: 26,
+                ),
+              ),
             )
           : null,
     );
@@ -1374,8 +1017,8 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
             bottom: index == categoryMap.length - 1 ? 0 : AppTheme.spacingXXL,
           ),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               // Collapsible Category Header
               InkWell(
                 onTap: () {
@@ -1386,31 +1029,16 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                   padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
                     children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(
-                                AppTheme.radiusSmall,
-                              ),
-                            ),
-                            child: Icon(
-                              _getCategorySectionIcon(title),
-                        size: 20,
-                              color: AppTheme.primaryBlue,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: SectionHeader(
+                              title: title,
+                              icon: _getCategorySectionIcon(title),
                             ),
                           ),
-                          const SizedBox(width: AppTheme.spacingM),
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: AppTheme.heading3.copyWith(fontSize: 17),
-                            ),
-                      ),
-                      const SizedBox(width: AppTheme.spacingS),
+                          const SizedBox(width: AppTheme.spacingS),
                           AnimatedRotation(
                             turns: isExpanded ? 0.5 : 0,
                             duration: AppTheme.mediumAnimation,
@@ -1424,9 +1052,9 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                       ),
                       const SizedBox(height: AppTheme.spacingM),
                       Divider(height: 1, thickness: 1, color: Colors.grey[200]),
-                ],
-              ),
-            ),
+                    ],
+                  ),
+                ),
               ),
               // Collapsible Horizontal Scrollable Cards
               AnimatedSize(
@@ -1434,26 +1062,26 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                 curve: Curves.easeInOut,
                 child: isExpanded
                     ? SizedBox(
-              height: 240,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.zero,
-                itemExtent: itemCardWidth + itemHorizontalGap,
-                itemCount: items.length,
-                itemBuilder: (context, idx) {
-                  final rightPad = (idx == items.length - 1)
-                      ? 0.0
-                      : itemHorizontalGap;
-                  return Padding(
-                    padding: EdgeInsets.only(right: rightPad),
-                    child: _buildNetflixItemCard(context, items[idx]),
-                  );
-                },
-              ),
+                        height: 240,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: EdgeInsets.zero,
+                          itemExtent: itemCardWidth + itemHorizontalGap,
+                          itemCount: items.length,
+                          itemBuilder: (context, idx) {
+                            final rightPad = (idx == items.length - 1)
+                                ? 0.0
+                                : itemHorizontalGap;
+                            return Padding(
+                              padding: EdgeInsets.only(right: rightPad),
+                              child: _buildNetflixItemCard(context, items[idx]),
+                            );
+                          },
+                        ),
                       )
                     : const SizedBox.shrink(),
-            ),
-          ],
+              ),
+            ],
           ),
         );
       },
@@ -1508,79 +1136,26 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
 
   Widget _buildEmptyState() {
     if (_searchQuery.isNotEmpty || _filterStatus != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingXL),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingXL),
-                decoration: BoxDecoration(
-                  color: AppTheme.lightPanel,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-                ),
-                child: const Icon(
-                  Icons.search_off,
-                  size: 64,
-                  color: AppTheme.primaryBlue,
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingL),
-              Text('No items found', style: AppTheme.heading4),
-              const SizedBox(height: AppTheme.spacingS),
-              Text(
-                'Try adjusting your search or filters',
-                style: AppTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppTheme.spacingXL),
-              ElevatedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _searchQuery = '';
-                    _filterStatus = null;
-                  });
-                },
-                icon: const Icon(Icons.clear_all),
-                label: const Text('Clear Filters'),
-                style: AppTheme.getPrimaryButtonStyle(),
-              ),
-            ],
-          ),
-        ),
+      return EmptyState(
+        icon: Icons.search_off,
+        title: 'No items found',
+        subtitle: 'Try adjusting your search or filters',
+        buttonLabel: 'Clear Filters',
+        onButtonPressed: () {
+          setState(() {
+            _searchQuery = '';
+            _filterStatus = null;
+          });
+        },
+        padding: const EdgeInsets.all(AppTheme.spacingXL),
       );
     }
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingXL),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingXL),
-              decoration: BoxDecoration(
-                gradient: AppTheme.cardGradient,
-                borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-              ),
-              child: const Icon(
-                Icons.inventory_2_outlined,
-                size: 64,
-                color: AppTheme.primaryBlue,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacingL),
-            Text('No items available yet', style: AppTheme.heading4),
-            const SizedBox(height: AppTheme.spacingS),
-            Text(
-              'Items that are lost or found will appear here',
-              style: AppTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    return const EmptyState(
+      icon: Icons.inventory_2_outlined,
+      title: 'No items available yet',
+      subtitle: 'Items that are lost or found will appear here',
+      padding: EdgeInsets.all(AppTheme.spacingXL),
     );
   }
 }
@@ -1603,150 +1178,15 @@ class _ShimmerLoadingPlaceholder extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Shimmer category header
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightGray,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Expanded(
-                      child: Container(
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: AppTheme.lightGray,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.spacingS),
-                    Container(
-                      width: 30,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: AppTheme.lightGray,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: AppTheme.spacingS),
+                child: LoadingSectionHeaderPlaceholder(),
               ),
-              // Shimmer horizontal cards
-              SizedBox(
-                height: 240,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemCount: 3,
-                  itemBuilder: (_, __) => _buildShimmerCard(),
-                ),
-              ),
+              const LoadingHorizontalCardsPlaceholder(),
             ],
           ),
         );
       },
-    );
-  }
-
-  Widget _buildShimmerCard() {
-    return Container(
-      width: 190,
-      height: 240,
-      decoration: AppTheme.getCardDecoration(
-        borderRadius: AppTheme.radiusLarge,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacingL),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status badge shimmer
-            Container(
-              height: 20,
-              width: 60,
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacingM),
-            // Item name shimmer
-            Container(
-              height: 18,
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              height: 18,
-              width: 140,
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacingS),
-            // Description shimmer
-            Container(
-              height: 14,
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              height: 14,
-              width: 160,
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              height: 14,
-              width: 100,
-              decoration: BoxDecoration(
-                color: AppTheme.lightGray,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const Spacer(),
-            // Date shimmer
-            Row(
-              children: [
-                Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightGray,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacingXS),
-                Container(
-                  height: 12,
-                  width: 60,
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightGray,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

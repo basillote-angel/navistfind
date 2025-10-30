@@ -4,8 +4,7 @@ import 'package:navistfind/widgets/nf_card.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/core/utils/category_utils.dart';
 import 'package:navistfind/core/utils/date_formatter.dart';
-import 'package:navistfind/features/lost_found/item/domain/enums/item_status.dart';
-import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
+import 'package:navistfind/widgets/status_chip.dart';
 
 class PostedItemCard extends StatelessWidget {
   const PostedItemCard({
@@ -77,7 +76,7 @@ class PostedItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Status chip at the top
-                  _StatusChip(
+                  StatusChip(
                     status: postedItem.status,
                     itemType: postedItem.type,
                     fontSize: chipFontSize,
@@ -132,87 +131,4 @@ class PostedItemCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.status,
-    required this.itemType,
-    this.fontSize = 10,
-  });
-  final ItemStatus status;
-  final ItemType itemType;
-  final double fontSize;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusInfo = _getStatusInfo(status, itemType);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: statusInfo.color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(statusInfo.icon, size: fontSize + 2, color: statusInfo.color),
-          const SizedBox(width: 4),
-          Text(
-            statusInfo.label,
-            style: TextStyle(
-              color: statusInfo.color,
-              fontSize: fontSize,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  StatusInfo _getStatusInfo(ItemStatus status, ItemType itemType) {
-    final isLost = itemType == ItemType.lost;
-
-    switch (status) {
-      case ItemStatus.returned:
-        return StatusInfo(
-          label: 'RETURNED',
-          icon: Icons.check_circle,
-          color: AppTheme.successGreen,
-        );
-      case ItemStatus.matched:
-        return StatusInfo(
-          label: 'POTENTIAL MATCH',
-          icon: Icons.search,
-          color: AppTheme.primaryBlue,
-        );
-      case ItemStatus.open:
-        return StatusInfo(
-          label: isLost ? 'SEARCHING' : 'AVAILABLE',
-          icon: isLost ? Icons.search : Icons.notifications_active,
-          color: isLost ? AppTheme.warningOrange : AppTheme.primaryBlue,
-        );
-      case ItemStatus.unclaimed:
-        return StatusInfo(
-          label: 'NOT CLAIMED',
-          icon: Icons.cancel_outlined,
-          color: AppTheme.errorRed,
-        );
-      case ItemStatus.closed:
-        return StatusInfo(
-          label: 'EXPIRED',
-          icon: Icons.access_time,
-          color: AppTheme.textGray,
-        );
-    }
-  }
-}
-
-class StatusInfo {
-  final String label;
-  final IconData icon;
-  final Color color;
-
-  StatusInfo({required this.label, required this.icon, required this.color});
 }

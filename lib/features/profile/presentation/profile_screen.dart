@@ -10,6 +10,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/features/lost_found/post-item/presentation/post_item_screen.dart';
 import 'package:navistfind/core/utils/category_utils.dart';
+import 'package:navistfind/features/lost_found/item/presentation/item_dialogs.dart';
+import 'package:navistfind/widgets/action_sheet_button.dart';
+import 'package:navistfind/widgets/section_header.dart';
+import 'package:navistfind/core/utils/snackbar_utils.dart';
+import 'package:navistfind/widgets/empty_state.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -83,39 +88,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (error == null) {
       Navigator.of(context).pushReplacementNamed('/login');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Logout Successful'),
-            ],
-          ),
-          backgroundColor: AppTheme.successGreen,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-        ),
-      );
+      SnackbarUtils.showSuccess(context, 'Logout Successful');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(child: Text(error)),
-            ],
-          ),
-          backgroundColor: AppTheme.errorRed,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-        ),
-      );
+      SnackbarUtils.showError(context, error);
     }
   }
 
@@ -140,74 +115,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.errorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Icon(
-                Icons.delete_outline,
-                color: AppTheme.errorRed,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Delete Item?')),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              item.name,
-              style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w700),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'This action cannot be undone. The item will be permanently removed from the system.',
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.textGray),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: AppTheme.textGray,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorRed,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-            ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await ItemDialogs.showDeleteConfirmationDialog(
+      context,
+      title: item.name,
     );
 
     if (confirmed == true) {
@@ -216,126 +126,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           .deleteItem(item.id);
       if (context.mounted) {
         if (error == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Item deleted successfully'),
-                ],
-              ),
-              backgroundColor: AppTheme.successGreen,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          SnackbarUtils.showItemDeleted(context);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(error)),
-                ],
-              ),
-              backgroundColor: AppTheme.errorRed,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-              ),
-            ),
-          );
+          SnackbarUtils.showError(context, error);
         }
       }
     }
   }
 
   void _showCannotDeleteDialog(BuildContext context, ItemStatus status) {
-    final statusLabel = _getStatusLabel(status);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Icon(
-              Icons.warning_amber_rounded,
-              color: AppTheme.errorRed,
-              size: 24,
-            ),
-            const SizedBox(width: 12),
-            const Text('Cannot Delete Item'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This item cannot be deleted because it has already been ${statusLabel.toLowerCase()}.',
-              style: AppTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.errorRed.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppTheme.errorRed, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Only items with "Open" status can be deleted.',
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.errorRed,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getStatusLabel(ItemStatus status) {
-    switch (status) {
-      case ItemStatus.open:
-        return 'Open';
-      case ItemStatus.matched:
-        return 'Matched';
-      case ItemStatus.returned:
-        return 'Returned';
-      case ItemStatus.closed:
-        return 'Closed';
-      case ItemStatus.unclaimed:
-        return 'Unclaimed';
-    }
+    ItemDialogs.showCannotDeleteDialog(context, status);
   }
 
   @override
@@ -457,7 +257,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSectionHeader('Statistics'),
+                          const SectionHeader(
+                            title: 'Statistics',
+                            icon: Icons.analytics_outlined,
+                          ),
                           const SizedBox(height: 16),
                           Row(
                             children: [
@@ -510,7 +313,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-                      child: _buildSectionHeader('Your Lost Items'),
+                      child: const SectionHeader(
+                        title: 'Your Lost Items',
+                        icon: Icons.inventory_2_outlined,
+                      ),
                     ),
                   ),
                   // Items List - Horizontal Scroll or Empty State
@@ -646,78 +452,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {IconData? icon}) {
-    // Default icons based on title
-    IconData defaultIcon = icon ?? _getSectionIcon(title);
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryBlue.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          ),
-          child: Icon(defaultIcon, color: AppTheme.primaryBlue, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Text(title, style: AppTheme.heading3),
-      ],
-    );
-  }
-
-  IconData _getSectionIcon(String title) {
-    switch (title.toLowerCase()) {
-      case 'statistics':
-        return Icons.analytics_outlined;
-      case 'your lost items':
-        return Icons.inventory_2_outlined;
-      default:
-        return Icons.info_outline;
-    }
-  }
-
   Widget _buildEmptyState(BuildContext context, String filter) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXL),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingXL),
-              decoration: BoxDecoration(
-                color: AppTheme.lightPanel,
-                borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
-              ),
-              child: Icon(
-                Icons.search_off_outlined,
-                size: 64,
-                color: AppTheme.primaryBlue.withOpacity(0.5),
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacingL),
-            Text('No Lost Items Posted Yet', style: AppTheme.heading4),
-            const SizedBox(height: AppTheme.spacingS),
-            Text(
-              'Start by reporting your first lost item to help us find it',
-              style: AppTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppTheme.spacingXL),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PostItemScreen()),
-                );
-              },
-              icon: const Icon(Icons.add_circle_outline),
-              label: const Text('Report Lost Item'),
-              style: AppTheme.getPrimaryButtonStyle(),
-            ),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: Icons.search_off_outlined,
+      title: 'No Lost Items Posted Yet',
+      subtitle: 'Start by reporting your first lost item to help us find it',
+      buttonLabel: 'Report Lost Item',
+      onButtonPressed: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const PostItemScreen()));
+      },
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingXL),
     );
   }
 
@@ -839,7 +585,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
               const Divider(height: 1),
-              _ActionButton(
+              ActionSheetButton(
                 icon: Icons.edit_outlined,
                 label: 'Edit',
                 enabled: canEditDelete,
@@ -862,7 +608,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         _showCannotEditDialog(context, item.status);
                       },
               ),
-              _ActionButton(
+              ActionSheetButton(
                 icon: Icons.delete_outline,
                 label: 'Delete',
                 enabled: canEditDelete,
@@ -877,7 +623,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       }
                     : () {
                         Navigator.pop(context);
-                        _showCannotDeleteDialog(context, item.status);
+                        ItemDialogs.showCannotDeleteDialog(
+                          context,
+                          item.status,
+                        );
                       },
               ),
               const SizedBox(height: 8),
@@ -919,70 +668,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showCannotEditDialog(BuildContext context, ItemStatus status) {
-    final statusLabel = _getStatusLabel(status);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: AppTheme.warningOrange, size: 24),
-            const SizedBox(width: 12),
-            const Text('Cannot Edit Item'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This item cannot be edited because it has already been ${statusLabel.toLowerCase()}.',
-              style: AppTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.softYellow,
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.tips_and_updates_outlined,
-                    color: AppTheme.warningOrange,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Only items with "Open" status can be edited.',
-                      style: AppTheme.bodySmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: AppTheme.primaryBlue,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    ItemDialogs.showCannotEditDialog(context, status);
   }
 }
 
@@ -1050,67 +736,4 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    required this.color,
-    required this.enabled,
-    this.disabledReason,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color color;
-  final bool enabled;
-  final String? disabledReason;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Row(
-          children: [
-            Icon(icon, color: enabled ? color : AppTheme.textGray, size: 24),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    label,
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: enabled ? color : AppTheme.textGray,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (disabledReason != null && !enabled) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      disabledReason!,
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppTheme.textGray,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            if (!enabled)
-              Icon(
-                Icons.info_outline,
-                size: 18,
-                color: AppTheme.textGray.withOpacity(0.5),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// Local _ActionButton removed in favor of shared ActionSheetButton
