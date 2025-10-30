@@ -23,13 +23,30 @@ class PostedItemsNotifier extends StateNotifier<AsyncValue<List<PostedItem>>> {
   }
 
   Future<String?> deleteItem(int id) async {
+    final previousItems = state.value ?? <PostedItem>[];
+    PostedItem? itemToDelete;
+    for (final candidate in previousItems) {
+      if (candidate.id == id) {
+        itemToDelete = candidate;
+        break;
+      }
+    }
+
+    // Optimistic update: remove locally before calling API
+    final optimisticallyUpdated = previousItems
+        .where((it) => it.id != id)
+        .toList();
+    state = AsyncData(optimisticallyUpdated);
+
     try {
-      await _service.deleteItem(id);
-      state = AsyncData(
-        (state.value ?? []).where((item) => item.id != id).toList(),
-      );
+      await _service.deleteItem(id, type: itemToDelete?.type);
+      // Refresh from server to ensure consistency
+      final refreshed = await _service.fetchPostedItems();
+      state = AsyncData(refreshed);
       return null;
     } catch (e) {
+      // Rollback on failure
+      state = AsyncData(previousItems);
       return 'Failed to delete item';
     }
   }

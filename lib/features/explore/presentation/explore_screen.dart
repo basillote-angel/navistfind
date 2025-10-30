@@ -8,7 +8,8 @@ class ExploreScreen extends StatefulWidget {
   State<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen> {
+class _ExploreScreenState extends State<ExploreScreen>
+    with WidgetsBindingObserver {
   CameraController? controller;
   bool _initializing = true;
   String? _error;
@@ -16,6 +17,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initCamera();
   }
 
@@ -30,7 +32,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
         return;
       }
       final cam = cams.first;
-      final ctrl = CameraController(cam, ResolutionPreset.max);
+      final ctrl = CameraController(
+        cam,
+        ResolutionPreset.medium,
+        enableAudio: false,
+      );
       await ctrl.initialize();
       if (!mounted) {
         await ctrl.dispose();
@@ -49,7 +55,24 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final camController = controller;
+    if (camController == null) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      camController.dispose();
+      setState(() {
+        controller = null;
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      _initializing = true;
+      _initCamera();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     controller?.dispose();
     super.dispose();
   }

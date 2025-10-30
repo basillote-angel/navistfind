@@ -1,20 +1,21 @@
 import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
-import 'package:navistfind/features/lost_found/item/domain/models/item.dart'
-    show MatchScoreItem;
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
 import 'package:navistfind/features/lost_found/item/domain/enums/item_status.dart';
 import 'package:navistfind/features/lost_found/item/presentation/item_details_screen.dart';
-// import 'package:navistfind/features/lost_found/item/presentation/item_category_list.dart';
-//import 'package:mobile_app/features/item/presentation/items_screen.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
-// import removed: ai_match_card (Matches tab removed)
 import 'package:navistfind/features/profile/application/profile_provider.dart';
+import 'package:navistfind/features/profile/domain/models/posted-item.dart';
 import 'package:navistfind/features/lost_found/post-item/presentation/post_item_screen.dart';
+import 'package:navistfind/features/lost_found/post-item/presentation/edit_item_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:navistfind/widgets/item_card.dart';
+import 'package:navistfind/widgets/posted_item_card.dart';
+import 'package:navistfind/core/theme/app_theme.dart';
+import 'package:navistfind/core/utils/category_utils.dart';
 
-enum Department { treasury, state }
+// Lost & Found screen
 
 class LostAndFoundScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
@@ -28,10 +29,14 @@ class _FoundTab extends ConsumerWidget {
   final String searchQuery;
   final ItemStatus? filterStatus;
   final AsyncValue<List<MatchScoreItem>> recommendedAsync;
+  final Set<String> expandedCategories;
+  final Function(String) onToggleCategory;
   const _FoundTab({
     required this.searchQuery,
     required this.filterStatus,
     required this.recommendedAsync,
+    required this.expandedCategories,
+    required this.onToggleCategory,
   });
 
   @override
@@ -43,7 +48,7 @@ class _FoundTab extends ConsumerWidget {
           final q = searchQuery.toLowerCase();
           final matchesSearch =
               q.isEmpty ||
-              item.name.toLowerCase().contains(q) ||
+              item.title.toLowerCase().contains(q) ||
               item.description.toLowerCase().contains(q) ||
               item.location.toLowerCase().contains(q);
           final matchesFilter =
@@ -53,10 +58,37 @@ class _FoundTab extends ConsumerWidget {
         return _LostAndFoundScreenState()._buildNetflixList(
           filtered,
           recommendedAsync,
+          expandedCategories,
+          onToggleCategory,
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _LostAndFoundScreenState()._buildErrorState(e),
+      loading: () => _ShimmerLoadingPlaceholder(),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 80, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load items',
+              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              e.toString(),
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                final _ = ref.refresh(itemsByTypeProvider(ItemType.found));
+              },
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -65,10 +97,14 @@ class _LostTab extends ConsumerWidget {
   final String searchQuery;
   final ItemStatus? filterStatus;
   final AsyncValue<List<MatchScoreItem>> recommendedAsync;
+  final Set<String> expandedCategories;
+  final Function(String) onToggleCategory;
   const _LostTab({
     required this.searchQuery,
     required this.filterStatus,
     required this.recommendedAsync,
+    required this.expandedCategories,
+    required this.onToggleCategory,
   });
 
   @override
@@ -80,7 +116,7 @@ class _LostTab extends ConsumerWidget {
           final q = searchQuery.toLowerCase();
           final matchesSearch =
               q.isEmpty ||
-              item.name.toLowerCase().contains(q) ||
+              item.title.toLowerCase().contains(q) ||
               item.description.toLowerCase().contains(q) ||
               item.location.toLowerCase().contains(q);
           final matchesFilter =
@@ -90,10 +126,37 @@ class _LostTab extends ConsumerWidget {
         return _LostAndFoundScreenState()._buildNetflixList(
           filtered,
           recommendedAsync,
+          expandedCategories,
+          onToggleCategory,
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => _LostAndFoundScreenState()._buildErrorState(e),
+      loading: () => _ShimmerLoadingPlaceholder(),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 80, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load items',
+              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              e.toString(),
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                final _ = ref.refresh(itemsByTypeProvider(ItemType.lost));
+              },
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -107,68 +170,824 @@ class _MyPostsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final postedAsync = ref.watch(postedItemsProvider);
     return postedAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => const Center(child: Text('Failed to load your posts')),
+      loading: () => _ShimmerLoadingPlaceholder(),
+      error: (e, _) => _buildErrorState(ref),
       data: (items) {
         if (items.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.post_add, size: 48, color: Colors.grey),
-                const SizedBox(height: 8),
-                const Text('You have no posts'),
-              ],
-            ),
-          );
+          return _buildEmptyState(context);
         }
-        final sorted = [...items]
-          ..sort(
-            (a, b) => DateTime.parse(
-              b.createdAt,
-            ).compareTo(DateTime.parse(a.createdAt)),
-          );
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: sorted.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (context, i) {
-            final p = sorted[i];
-            return Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+
+        // Group items by status
+        final groupedItems = _groupItemsByStatus(items);
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(
+            bottom: 120, // Extra space for FAB
+            top: AppTheme.spacingL,
+            left: 20,
+            right: 20,
+          ),
+          itemCount: groupedItems.length,
+          itemBuilder: (context, index) {
+            final entry = groupedItems.entries.elementAt(index);
+            final status = entry.key;
+            final statusItems = entry.value;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: index == groupedItems.length - 1
+                    ? 0
+                    : AppTheme.spacingXXL,
               ),
-              child: ListTile(
-                leading: const Icon(Icons.inventory_2),
-                title: Text(p.name),
-                subtitle: Text(
-                  '${p.status.name} • ${_relativeTime(p.createdAt)}',
-                ),
-                onTap: () => showItemDetailsModal(context, p.id),
-              ),
+              child: _buildStatusSection(context, status, statusItems),
             );
           },
         );
       },
     );
   }
+
+  Widget _buildErrorState(WidgetRef ref) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingXL),
+              decoration: BoxDecoration(
+                color: AppTheme.errorRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: AppTheme.errorRed,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            Text('Failed to load your posts', style: AppTheme.heading4),
+            const SizedBox(height: AppTheme.spacingS),
+            Text(
+              'Please check your connection and try again',
+              style: AppTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppTheme.spacingXL),
+            ElevatedButton.icon(
+              onPressed: () {
+                ref.read(postedItemsProvider.notifier).loadItems();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: AppTheme.getPrimaryButtonStyle(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingXL),
+              decoration: BoxDecoration(
+                gradient: AppTheme.cardGradient,
+                borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
+              ),
+              child: const Icon(
+                Icons.post_add,
+                size: 64,
+                color: AppTheme.primaryBlue,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            Text('No Posts Yet', style: AppTheme.heading4),
+            const SizedBox(height: AppTheme.spacingS),
+            Text(
+              'Start by posting your first lost or found item',
+              style: AppTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppTheme.spacingXL),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const PostItemScreen())),
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Post Your First Item'),
+              style: AppTheme.getPrimaryButtonStyle(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusSection(
+    BuildContext context,
+    String status,
+    List<PostedItem> items,
+  ) {
+    final statusIcon = _getStatusIcon(status);
+    final statusColor = _getStatusColor(status);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Status Header with Divider
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                    ),
+                    child: Icon(statusIcon, size: 20, color: statusColor),
+                  ),
+                  const SizedBox(width: AppTheme.spacingM),
+                  Text(
+                    _getUserFriendlyStatusLabel(status),
+                    style: AppTheme.heading4.copyWith(fontSize: 17),
+                  ),
+                  const SizedBox(width: AppTheme.spacingM),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacingM,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+                    ),
+                    child: Text(
+                      '${items.length}',
+                      style: AppTheme.caption.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+            ],
+          ),
+        ),
+        // Horizontal Scrollable Cards
+        SizedBox(
+          height: 240,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.zero,
+            itemExtent: 190 + 12, // itemCardWidth + itemHorizontalGap
+            itemCount: items.length,
+            itemBuilder: (context, index) {
+              final rightPad = (index == items.length - 1) ? 0.0 : 12.0;
+              return Padding(
+                padding: EdgeInsets.only(right: rightPad),
+                child: _buildMyPostCard(context, items[index]),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMyPostCard(BuildContext context, PostedItem item) {
+    return PostedItemCard(
+      postedItem: item,
+      cardWidth: 190,
+      radius: AppTheme.radiusLarge,
+      onTap: () => showItemDetailsModal(context, item.id),
+      onLongPress: () => _showItemActionSheet(context, item),
+    );
+  }
+
+  void _showItemActionSheet(BuildContext outerContext, PostedItem item) {
+    final canEditDelete = item.status == ItemStatus.open;
+
+    showModalBottomSheet(
+      context: outerContext,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppTheme.radiusXLarge),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.textGray.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Item info header
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusMedium,
+                            ),
+                          ),
+                          child: Icon(
+                            CategoryUtils.getIcon(item.category),
+                            color: AppTheme.primaryBlue,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.name,
+                                style: AppTheme.heading4,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                item.location,
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: AppTheme.textGray,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Action buttons
+              _ActionButton(
+                icon: Icons.edit_outlined,
+                label: 'Edit',
+                enabled: canEditDelete,
+                disabledReason: canEditDelete
+                    ? null
+                    : _getEditDisabledReason(item.status),
+                color: AppTheme.primaryBlue,
+                onTap: canEditDelete
+                    ? () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          outerContext,
+                          MaterialPageRoute(
+                            builder: (_) => EditItemScreen(item: item),
+                          ),
+                        );
+                      }
+                    : () {
+                        Navigator.pop(context);
+                        _showCannotEditDialog(outerContext, item.status);
+                      },
+              ),
+              _ActionButton(
+                icon: Icons.delete_outline,
+                label: 'Delete',
+                enabled: canEditDelete,
+                disabledReason: canEditDelete
+                    ? null
+                    : _getDeleteDisabledReason(item.status),
+                color: AppTheme.errorRed,
+                onTap: canEditDelete
+                    ? () {
+                        Navigator.pop(context);
+                        _showDeleteConfirmation(outerContext, item);
+                      }
+                    : () {
+                        Navigator.pop(context);
+                        _showCannotDeleteDialog(outerContext, item.status);
+                      },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getEditDisabledReason(ItemStatus status) {
+    switch (status) {
+      case ItemStatus.matched:
+        return 'Item is matched';
+      case ItemStatus.returned:
+        return 'Item already returned';
+      case ItemStatus.closed:
+        return 'Item is closed';
+      case ItemStatus.unclaimed:
+        return 'Item is unclaimed';
+      case ItemStatus.open:
+        return '';
+    }
+  }
+
+  String _getDeleteDisabledReason(ItemStatus status) {
+    switch (status) {
+      case ItemStatus.matched:
+        return 'Cannot delete matched item';
+      case ItemStatus.returned:
+        return 'Cannot delete returned item';
+      case ItemStatus.closed:
+        return 'Cannot delete closed item';
+      case ItemStatus.unclaimed:
+        return 'Cannot delete unclaimed item';
+      case ItemStatus.open:
+        return '';
+    }
+  }
+
+  void _showCannotEditDialog(BuildContext context, ItemStatus status) {
+    final statusLabel = _getStatusLabel(status);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: AppTheme.warningOrange, size: 24),
+            const SizedBox(width: 12),
+            const Text('Cannot Edit Item'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This item cannot be edited because it has already been ${statusLabel.toLowerCase()}.',
+              style: AppTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.softYellow,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.tips_and_updates_outlined,
+                    color: AppTheme.warningOrange,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Only items with "Open" status can be edited.',
+                      style: AppTheme.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: AppTheme.primaryBlue,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCannotDeleteDialog(BuildContext context, ItemStatus status) {
+    final statusLabel = _getStatusLabel(status);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: AppTheme.errorRed,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            const Text('Cannot Delete Item'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This item cannot be deleted because it has already been ${statusLabel.toLowerCase()}.',
+              style: AppTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.errorRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppTheme.errorRed, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Only items with "Open" status can be deleted.',
+                      style: AppTheme.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.errorRed,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: AppTheme.primaryBlue,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showDeleteConfirmation(
+    BuildContext context,
+    PostedItem item,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.errorRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              ),
+              child: Icon(
+                Icons.delete_outline,
+                color: AppTheme.errorRed,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Delete Item?')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.name,
+              style: AppTheme.bodyMedium.copyWith(fontWeight: FontWeight.w700),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'This action cannot be undone. The item will be permanently removed from the system.',
+              style: AppTheme.bodySmall.copyWith(color: AppTheme.textGray),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppTheme.textGray,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+            ),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      final ref = ProviderScope.containerOf(context);
+      try {
+        final err = await ref
+            .read(postedItemsProvider.notifier)
+            .deleteItem(item.id);
+        if (err == null && context.mounted) {
+          // Force refresh lists so the deleted item disappears immediately
+          ref.invalidate(postedItemsProvider);
+          ref.invalidate(itemListProvider);
+          ref.invalidate(itemsByTypeProvider(ItemType.lost));
+          ref.invalidate(itemsByTypeProvider(ItemType.found));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Item deleted successfully'),
+                ],
+              ),
+              backgroundColor: AppTheme.successGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(err ?? 'Failed to delete item')),
+                ],
+              ),
+              backgroundColor: AppTheme.errorRed,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('Failed to delete item'),
+                ],
+              ),
+              backgroundColor: AppTheme.errorRed,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+              ),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  String _getStatusLabel(ItemStatus status) {
+    switch (status) {
+      case ItemStatus.open:
+        return 'Open';
+      case ItemStatus.matched:
+        return 'Matched';
+      case ItemStatus.returned:
+        return 'Returned';
+      case ItemStatus.closed:
+        return 'Closed';
+      case ItemStatus.unclaimed:
+        return 'Unclaimed';
+    }
+  }
+
+  Map<String, List<PostedItem>> _groupItemsByStatus(List<PostedItem> items) {
+    final Map<String, List<PostedItem>> grouped = {};
+
+    for (final item in items) {
+      final status = item.status.name.toLowerCase();
+      grouped.putIfAbsent(status, () => []).add(item);
+    }
+
+    // Sort items within each group by creation date (newest first)
+    grouped.forEach((status, items) {
+      items.sort(
+        (a, b) =>
+            DateTime.parse(b.createdAt).compareTo(DateTime.parse(a.createdAt)),
+      );
+    });
+
+    // Return in preferred order
+    final orderedGroups = <String, List<PostedItem>>{};
+    const preferredOrder = [
+      'open',
+      'matched',
+      'returned',
+      'closed',
+      'unclaimed',
+    ];
+
+    for (final status in preferredOrder) {
+      if (grouped.containsKey(status)) {
+        orderedGroups[status] = grouped[status]!;
+      }
+    }
+
+    // Add any remaining statuses
+    grouped.forEach((status, items) {
+      if (!orderedGroups.containsKey(status)) {
+        orderedGroups[status] = items;
+      }
+    });
+
+    return orderedGroups;
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'returned':
+      case 'claimed':
+        return Icons.check_circle;
+      case 'matched':
+        return Icons.search;
+      case 'open':
+      case 'unclaimed':
+        return Icons.search_off;
+      case 'closed':
+        return Icons.close;
+      default:
+        return Icons.inventory_2;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'returned':
+      case 'claimed':
+        return AppTheme.successGreen;
+      case 'matched':
+        return AppTheme.primaryBlue;
+      case 'open':
+      case 'unclaimed':
+        return AppTheme.errorRed;
+      case 'closed':
+        return AppTheme.textGray;
+      default:
+        return AppTheme.primaryBlue;
+    }
+  }
+
+  String _getUserFriendlyStatusLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'returned':
+      case 'claimed':
+        return 'RETURNED';
+      case 'matched':
+        return 'POTENTIAL MATCHES';
+      case 'open':
+        return 'ACTIVE SEARCHES';
+      case 'unclaimed':
+        return 'NOT CLAIMED';
+      case 'closed':
+        return 'EXPIRED';
+      default:
+        return status.toUpperCase();
+    }
+  }
 }
 
-String _relativeTime(String iso) {
-  try {
-    final dt = DateTime.parse(iso);
-    final now = DateTime.now();
-    final d = now.difference(dt);
-    if (d.isNegative) return 'Just now';
-    if (d.inMinutes < 1) return 'Just now';
-    if (d.inMinutes < 60) return '${d.inMinutes} min ago';
-    if (d.inHours < 24)
-      return '${d.inHours} hr${d.inHours == 1 ? '' : 's'} ago';
-    if (d.inDays == 1) return 'Yesterday';
-    if (d.inDays <= 7) return '${d.inDays} days ago';
-    return '${dt.month}/${dt.day}/${dt.year}';
-  } catch (_) {
-    return 'Unknown date';
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.color,
+    required this.enabled,
+    this.disabledReason,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color color;
+  final bool enabled;
+  final String? disabledReason;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          children: [
+            Icon(icon, color: enabled ? color : AppTheme.textGray, size: 24),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: enabled ? color : AppTheme.textGray,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (disabledReason != null && !enabled) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      disabledReason!,
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppTheme.textGray,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (!enabled)
+              Icon(
+                Icons.info_outline,
+                size: 18,
+                color: AppTheme.textGray.withOpacity(0.5),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -176,13 +995,37 @@ String _relativeTime(String iso) {
 
 class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
     with SingleTickerProviderStateMixin {
+  // Shared sizing for item cards in horizontal lists (match ItemCard default)
+  static const double itemCardWidth = 190;
+  // header height is handled by ItemCard's default
+  static const double itemHorizontalGap = 12;
   String _searchQuery = '';
   ItemStatus? _filterStatus;
-  bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+
+  // Collapsible categories state - "Recently Posted Items" expanded by default
+  Set<String> _expandedCategories = {'Recently Posted Items'};
+
+  // TabController to track active tab
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    final int tabLength = 3;
+    _tabController = TabController(
+      length: tabLength,
+      initialIndex: widget.initialTabIndex.clamp(0, tabLength - 1),
+      vsync: this,
+    );
+    _tabController.addListener(() {
+      setState(() {}); // Rebuild to show/hide FAB
+    });
+  }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -190,247 +1033,299 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
   @override
   Widget build(BuildContext context) {
     final recommendedAsync = ref.watch(recommendedItemsProvider);
-    final int tabLength = 3;
-    final int safeInitialIndex = widget.initialTabIndex.clamp(0, tabLength - 1);
-    return DefaultTabController(
-      length: tabLength,
-      initialIndex: safeInitialIndex,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFFAFAF9),
+    // Check if current tab is "My Posts" (index 2)
+    final bool isMyPostsTab = _tabController.index == 2;
+
+    return Scaffold(
+        backgroundColor: Colors.white,
         appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(140),
+        preferredSize: const Size.fromHeight(170),
           child: SafeArea(
+          bottom: false,
             child: Column(
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 18,
+              const SizedBox(height: 16), // Top margin
+              // Top Bar with Search Bar Inside
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryBlue,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(AppTheme.radiusXLarge),
+                      bottomRight: Radius.circular(AppTheme.radiusXLarge),
+                    ),
                   ),
-                  color: const Color(0xFFFAFAF9),
-                  child: Row(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingL,
+                    vertical: AppTheme.spacingM,
+                  ),
+                  child: Column(
                     children: [
-                      if (!_isSearching)
-                        Expanded(
-                          child: Text(
-                            'Lost & Found',
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1C2A40),
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ),
-                      if (_isSearching)
-                        Expanded(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            child: Center(
-                              key: const ValueKey('modernSearch'),
-                              child: ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 600,
-                                ),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 250),
+                      // Search Bar Inside Blue Container
+                      Container(
                                   height: 48,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(28),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.06),
-                                        blurRadius: 10,
-                                        offset: const Offset(0, 3),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(28),
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF1C2A40),
-                                          Color(0xFF35465E),
-                                        ],
-                                      ),
-                                    ),
-                                    padding: const EdgeInsets.all(1.5),
-                                    child: Container(
                                       decoration: BoxDecoration(
                                         color: Colors.white,
-                                        borderRadius: BorderRadius.circular(26),
+                                        borderRadius: BorderRadius.circular(
+                            AppTheme.radiusLarge,
+                                        ),
                                       ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingM,
+                        ),
                                       child: Row(
                                         children: [
-                                          const SizedBox(width: 10),
                                           const Icon(
-                                            Icons.search,
-                                            color: Color(0xFF1C2A40),
-                                            size: 22,
+                              Icons.search_rounded,
+                              color: AppTheme.textGray,
                                           ),
-                                          const SizedBox(width: 6),
+                            const SizedBox(width: AppTheme.spacingS),
                                           Expanded(
                                             child: TextField(
                                               controller: _searchController,
-                                              autofocus: true,
-                                              textInputAction:
-                                                  TextInputAction.search,
-                                              onSubmitted: (v) {
+                                textInputAction: TextInputAction.search,
+                                onChanged: (v) {
                                                 setState(() {
-                                                  _searchQuery = v
-                                                      .trim()
-                                                      .toLowerCase();
+                                    _searchQuery = v.toLowerCase();
                                                 });
                                               },
-                                              onChanged: (v) {
+                                onSubmitted: (v) {
                                                 setState(() {
-                                                  _searchQuery = v
-                                                      .toLowerCase();
+                                    _searchQuery = v.trim().toLowerCase();
                                                 });
                                               },
                                               decoration: const InputDecoration(
-                                                hintText:
-                                                    'Search items, locations, categories…',
+                                  hintText: 'Search lost or found items...',
                                                 hintStyle: TextStyle(
-                                                  color: Color(0xFF7A7A7A),
+                                                  color: AppTheme.textGray,
                                                   fontSize: 15,
                                                 ),
                                                 border: InputBorder.none,
-                                                isCollapsed: true,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                      horizontal: 8,
                                                     ),
-                                              ),
-                                              style: const TextStyle(
-                                                color: Color(0xFF1A1A1A),
-                                                fontSize: 15,
+                                style: AppTheme.bodyMedium,
                                               ),
                                             ),
-                                          ),
-                                          // Always show a close to exit search UX
+                            if (_searchQuery.isNotEmpty)
                                           IconButton(
                                             icon: const Icon(
                                               Icons.close,
-                                              color: Color(0xFF1C2A40),
+                                  color: AppTheme.textGray,
                                               size: 20,
                                             ),
-                                            splashRadius: 20,
                                             onPressed: () {
                                               setState(() {
                                                 _searchQuery = '';
                                                 _searchController.clear();
-                                                _isSearching = false;
                                               });
                                             },
                                           ),
-                                          const SizedBox(width: 8),
                                         ],
                                       ),
                                     ),
+                    ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ),
-                      if (!_isSearching)
-                        IconButton(
-                          icon: const Icon(
-                            Icons.search,
-                            color: Color(0xFF1C2A40),
-                            size: 28,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _isSearching = true;
-                            });
-                          },
+              const SizedBox(height: 16),
+
+              // Tab Bar - Enhanced Segmented Control
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightPanel,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                    boxShadow: AppTheme.elevatedShadow,
+                  ),
+                  padding: const EdgeInsets.all(5),
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: false,
+                    labelColor: Colors.white,
+                    labelStyle: AppTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      letterSpacing: 0.2,
+                    ),
+                    unselectedLabelColor: AppTheme.textGray,
+                    unselectedLabelStyle: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.textGray,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      letterSpacing: 0.1,
+                    ),
+                    indicator: BoxDecoration(
+                      color: AppTheme.primaryBlue,
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusMedium,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryBlue.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                     ],
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: TabBar(
-                    isScrollable: false,
-                    labelColor: const Color(0xFF1C2A40),
-                    labelStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    indicatorColor: const Color(0xFF1C2A40),
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    dividerColor: Colors.transparent,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 8),
                     tabs: [
-                      const Tab(text: 'Found'),
-                      const Tab(text: 'Lost'),
-                      const Tab(text: 'My Posts'),
-                    ],
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.inventory_2_outlined, size: 16),
+                            SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Found',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_circle_outline_rounded, size: 16),
+                            SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'Lost',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.assignment_outlined, size: 16),
+                            SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'My Posts',
+                                overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        body: TabBarView(
-          physics: NeverScrollableScrollPhysics(),
-          children: [
-            _FoundTab(
-              searchQuery: _searchQuery,
-              filterStatus: _filterStatus,
-              recommendedAsync: recommendedAsync,
-            ),
-            _LostTab(
-              searchQuery: _searchQuery,
-              filterStatus: _filterStatus,
-              recommendedAsync: recommendedAsync,
-            ),
-            const _MyPostsTab(),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const PostItemScreen())),
-          backgroundColor: const Color(0xFF1C2A40),
-          child: const Icon(Icons.add, color: Color(0xFFF4B431)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+      body: TabBarView(
+        controller: _tabController,
+            physics: NeverScrollableScrollPhysics(),
+            children: [
+              _FoundTab(
+                searchQuery: _searchQuery,
+                filterStatus: _filterStatus,
+                recommendedAsync: recommendedAsync,
+            expandedCategories: _expandedCategories,
+            onToggleCategory: (title) {
+              setState(() {
+                if (_expandedCategories.contains(title)) {
+                  _expandedCategories.remove(title);
+                } else {
+                  _expandedCategories.add(title);
+                }
+              });
+            },
+              ),
+              _LostTab(
+                searchQuery: _searchQuery,
+                filterStatus: _filterStatus,
+                recommendedAsync: recommendedAsync,
+            expandedCategories: _expandedCategories,
+            onToggleCategory: (title) {
+              setState(() {
+                if (_expandedCategories.contains(title)) {
+                  _expandedCategories.remove(title);
+                } else {
+                  _expandedCategories.add(title);
+                }
+              });
+            },
+              ),
+              const _MyPostsTab(),
+            ],
+          ),
+      floatingActionButton: isMyPostsTab
+          ? Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.goldenAccent.withOpacity(0.4),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+              BoxShadow(
+                    color: AppTheme.primaryBlue.withOpacity(0.3),
+                blurRadius: 15,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: FloatingActionButton.extended(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PostItemScreen()),
+                ),
+                backgroundColor: AppTheme.primaryBlue,
+            extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
+            label: const Text(
+              'Post Item',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                    color: Colors.white,
+              ),
+            ),
+            icon: const Icon(
+              Icons.add_circle_outline,
+                  color: Colors.white,
+              size: 26,
+            ),
+          ),
+            )
+          : null,
     );
   }
 
   Widget _buildNetflixList(
     List<Item> items,
     AsyncValue<List<MatchScoreItem>> recommendedAsync,
+    Set<String> expandedCategories,
+    Function(String) onToggleCategory,
   ) {
     if (items.isEmpty) return _buildEmptyState();
     final now = DateTime.now();
     final recentItems =
         items.where((item) {
-          final createdAt = DateTime.tryParse(item.created_at);
+          final createdAt = DateTime.tryParse(item.createdAt);
           return createdAt != null && now.difference(createdAt).inDays <= 5;
         }).toList()..sort(
           (a, b) => DateTime.parse(
-            b.created_at,
-          ).compareTo(DateTime.parse(a.created_at)),
+            b.createdAt,
+          ).compareTo(DateTime.parse(a.createdAt)),
         );
-    List<Item> recommendedItems = [];
-    recommendedAsync.whenData((data) {
-      recommendedItems = data
-          .map((m) => m.item)
-          .whereType<Item>()
-          .toList()
-          .take(6)
-          .toList();
-    });
 
     final Map<String, List<Item>> categoryMap = {
-      'Recommended for You': recommendedItems,
       'Recently Posted Items': recentItems,
       'Electronic': items
           .where((i) => i.category == ItemCategory.electronics)
@@ -461,45 +1356,105 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
           .toList(),
     };
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.only(
+        bottom: AppTheme.spacingXL,
+        top: AppTheme.spacingL,
+        left: 20,
+        right: 20,
+      ),
       itemCount: categoryMap.length,
       itemBuilder: (context, index) {
         final title = categoryMap.keys.elementAt(index);
         final items = categoryMap[title]!;
         if (items.isEmpty) return const SizedBox.shrink();
-        return Column(
+        final isExpanded = expandedCategories.contains(title);
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index == categoryMap.length - 1 ? 0 : AppTheme.spacingXXL,
+          ),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Collapsible Category Header
+              InkWell(
+                onTap: () {
+                  onToggleCategory(title);
+                },
+                borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
-                    ),
-                  ),
-                  const SizedBox.shrink(),
+                  Row(
+                    children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryBlue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(
+                                AppTheme.radiusSmall,
+                              ),
+                            ),
+                            child: Icon(
+                              _getCategorySectionIcon(title),
+                        size: 20,
+                              color: AppTheme.primaryBlue,
+                            ),
+                          ),
+                          const SizedBox(width: AppTheme.spacingM),
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: AppTheme.heading3.copyWith(fontSize: 17),
+                            ),
+                      ),
+                      const SizedBox(width: AppTheme.spacingS),
+                          AnimatedRotation(
+                            turns: isExpanded ? 0.5 : 0,
+                            duration: AppTheme.mediumAnimation,
+                            child: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AppTheme.primaryBlue,
+                              size: 24,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.spacingM),
+                      Divider(height: 1, thickness: 1, color: Colors.grey[200]),
                 ],
               ),
             ),
-            SizedBox(
-              height: 240,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: items.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, idx) =>
-                    _buildNetflixItemCard(context, items[idx]),
               ),
+              // Collapsible Horizontal Scrollable Cards
+              AnimatedSize(
+                duration: AppTheme.mediumAnimation,
+                curve: Curves.easeInOut,
+                child: isExpanded
+                    ? SizedBox(
+              height: 240,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.zero,
+                itemExtent: itemCardWidth + itemHorizontalGap,
+                itemCount: items.length,
+                itemBuilder: (context, idx) {
+                  final rightPad = (idx == items.length - 1)
+                      ? 0.0
+                      : itemHorizontalGap;
+                  return Padding(
+                    padding: EdgeInsets.only(right: rightPad),
+                    child: _buildNetflixItemCard(context, items[idx]),
+                  );
+                },
+              ),
+                      )
+                    : const SizedBox.shrink(),
             ),
-            const SizedBox(height: 8),
           ],
+          ),
         );
       },
     );
@@ -507,251 +1462,290 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
 
   // _filterItemsInternal removed (unused)
 
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final difference = now.difference(date);
-
-      if (difference.isNegative) return 'Just now'; // Future date
-
-      if (difference.inDays > 7) {
-        return '${date.month}/${date.day}/${date.year}';
-      } else if (difference.inDays >= 2) {
-        return '${difference.inDays} days ago';
-      } else if (difference.inDays == 1) {
-        return 'Yesterday';
-      } else if (difference.inHours >= 1) {
-        return '${difference.inHours} hr${difference.inHours == 1 ? '' : 's'} ago';
-      } else if (difference.inMinutes >= 1) {
-        return '${difference.inMinutes} min ago'; // <== changed here
-      } else {
-        return 'Just now';
-      }
-    } catch (e) {
-      return 'Unknown date';
+  /// Get icon for category SECTION headers (e.g., "Recently Posted Items", "Electronic")
+  /// Different from item category icons - this is for UI section headers
+  IconData _getCategorySectionIcon(String categoryName) {
+    switch (categoryName) {
+      case 'Recently Posted Items':
+        return Icons.schedule_rounded;
+      case 'Electronic':
+        return Icons.devices_other;
+      case 'Document':
+        return Icons.description;
+      case 'Accessories':
+        return Icons.watch;
+      case 'ID and Cards':
+        return Icons.badge;
+      case 'Clothing':
+        return Icons.checkroom;
+      case 'Bag and Pouches':
+        return Icons.backpack;
+      case 'Personal Item':
+        return Icons.assignment_ind;
+      case 'School Supplies':
+        return Icons.library_books;
+      case 'Others Types':
+        return Icons.category;
+      default:
+        return Icons.inventory_2;
     }
   }
 
   Widget _buildNetflixItemCard(BuildContext context, Item item) {
-    return GestureDetector(
-      onTap: () => showItemDetailsModal(context, item.id),
-      child: Container(
-        width: 150,
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(
-            color: const Color(0xFF1C2A40).withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              height: 110,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C2A40),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  getCategoryIcon(item.category),
-                  size: 48,
-                  color: const Color(0xFFF4B431), // Accent yellow
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: const TextStyle(
-                      color: Color(0xFF1A1A1A),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  _buildTypeChip(item.type),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.place,
-                        size: 14,
-                        color: Color(0xFF1C2A40),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          item.location,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: Color(0xFF1C2A40),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDate(item.created_at),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return ItemCard(
+      item: item,
+      cardWidth: itemCardWidth,
+      radius: AppTheme.radiusXXLarge,
+      borderOpacity: 0.06,
+      borderWidth: 0.75,
+      onTap: () => showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => ItemDetailsModal(itemId: item.id, type: item.type),
       ),
     );
-  }
-
-  Widget _buildTypeChip(ItemType type) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: type == ItemType.lost ? Colors.red[100] : Colors.blue[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        type == ItemType.lost ? 'Lost' : 'Found',
-        style: TextStyle(
-          color: type == ItemType.lost ? Colors.red : Colors.blue,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  IconData getCategoryIcon(ItemCategory category) {
-    switch (category) {
-      case ItemCategory.electronics:
-        return Icons.devices_other;
-      case ItemCategory.documents:
-        return Icons.description;
-      case ItemCategory.accessories:
-        return Icons.watch;
-      case ItemCategory.idOrCards:
-        return Icons.badge;
-      case ItemCategory.clothing:
-        return Icons.checkroom;
-      case ItemCategory.bagOrPouches:
-        return Icons.backpack;
-      case ItemCategory.personalItems:
-        return Icons.assignment_ind;
-      case ItemCategory.schoolSupplies:
-        return Icons.library_books;
-      case ItemCategory.others:
-        return Icons.category;
-    }
   }
 
   Widget _buildEmptyState() {
     if (_searchQuery.isNotEmpty || _filterStatus != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.search_off, size: 80, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(
-              'No items match your search',
-              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _searchQuery = '';
-                  _filterStatus = null;
-                });
-              },
-              child: const Text('Clear Filters'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingXL),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingXL),
+                decoration: BoxDecoration(
+                  color: AppTheme.lightPanel,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
+                ),
+                child: const Icon(
+                  Icons.search_off,
+                  size: 64,
+                  color: AppTheme.primaryBlue,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingL),
+              Text('No items found', style: AppTheme.heading4),
+              const SizedBox(height: AppTheme.spacingS),
+              Text(
+                'Try adjusting your search or filters',
+                style: AppTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppTheme.spacingXL),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _searchQuery = '';
+                    _filterStatus = null;
+                  });
+                },
+                icon: const Icon(Icons.clear_all),
+                label: const Text('Clear Filters'),
+                style: AppTheme.getPrimaryButtonStyle(),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.inbox, size: 80, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            'No items available',
-            style: TextStyle(fontSize: 18, color: Colors.grey[700]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Items that are lost or found will appear here',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingXL),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingXL),
+              decoration: BoxDecoration(
+                gradient: AppTheme.cardGradient,
+                borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
+              ),
+              child: const Icon(
+                Icons.inventory_2_outlined,
+                size: 64,
+                color: AppTheme.primaryBlue,
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingL),
+            Text('No items available yet', style: AppTheme.heading4),
+            const SizedBox(height: AppTheme.spacingS),
+            Text(
+              'Items that are lost or found will appear here',
+              style: AppTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildErrorState(Object error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 80, color: Colors.red),
-          const SizedBox(height: 16),
-          Text(
-            'Failed to load items',
-            style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+class _ShimmerLoadingPlaceholder extends StatelessWidget {
+  const _ShimmerLoadingPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildLoadingState();
+  }
+
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: AppTheme.spacingL, bottom: 120),
+      itemCount: 3,
+      itemBuilder: (context, index) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppTheme.spacingXL),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Shimmer category header
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.spacingS),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightGray,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingS),
+                    Expanded(
+                      child: Container(
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: AppTheme.lightGray,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingS),
+                    Container(
+                      width: 30,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightGray,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Shimmer horizontal cards
+              SizedBox(
+                height: 240,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemCount: 3,
+                  itemBuilder: (_, __) => _buildShimmerCard(),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            error.toString(),
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              final _ = ref.refresh(itemListProvider);
-            },
-            child: const Text('Try Again'),
-          ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildShimmerCard() {
+    return Container(
+      width: 190,
+      height: 240,
+      decoration: AppTheme.getCardDecoration(
+        borderRadius: AppTheme.radiusLarge,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingL),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Status badge shimmer
+            Container(
+              height: 20,
+              width: 60,
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingM),
+            // Item name shimmer
+            Container(
+              height: 18,
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              height: 18,
+              width: 140,
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingS),
+            // Description shimmer
+            Container(
+              height: 14,
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              height: 14,
+              width: 160,
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              height: 14,
+              width: 100,
+              decoration: BoxDecoration(
+                color: AppTheme.lightGray,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const Spacer(),
+            // Date shimmer
+            Row(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: AppTheme.spacingXS),
+                Container(
+                  height: 12,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightGray,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -8,6 +8,8 @@ class PostedItem {
   final int? finderId;
   final String name;
   final String category;
+  final int? categoryId;
+  final String? categoryName;
   final String description;
   final ItemStatus status;
   final ItemType type;
@@ -23,6 +25,8 @@ class PostedItem {
     this.finderId,
     required this.name,
     required this.category,
+    this.categoryId,
+    this.categoryName,
     required this.description,
     required this.status,
     required this.type,
@@ -36,17 +40,25 @@ class PostedItem {
   factory PostedItem.fromJson(Map<String, dynamic> json) {
     return PostedItem(
       id: json['id'],
-      name: json['name'],
-      category: json['category'],
-      description: json['description'],
+      name: (json['title'] ?? json['name'] ?? '').toString(),
+      category: (json['category_name'] ?? json['category'] ?? '').toString(),
+      categoryId: json['category_id'],
+      categoryName: (json['category_name'] ?? json['category'])?.toString(),
+      description: json['description'] ?? '',
       ownerId: json['owner_id'],
       finderId: json['finder_id'],
-      status: ItemStatusExtension.fromString(json['status']),
-      type: ItemTypeExtension.fromString(json['type']),
-      location: json['location'],
-      lostFoundDate: json['lost_found_date'],
-      createdAt: json['created_at'],
-      updatedAt: json['updated_at'],
+      status: ItemStatusExtension.fromString((json['status'] ?? '').toString()),
+      type: ItemTypeExtension.fromString((json['type'] ?? '').toString()),
+      location: json['location'] ?? '',
+      lostFoundDate:
+          (json['date'] ??
+                  json['date_lost'] ??
+                  json['date_found'] ??
+                  json['lost_found_date'] ??
+                  '')
+              .toString(),
+      createdAt: (json['createdAt'] ?? json['created_at'] ?? '').toString(),
+      updatedAt: (json['updatedAt'] ?? json['updated_at'] ?? '').toString(),
       matchedItem: _parseMatchedItem(json),
     );
   }

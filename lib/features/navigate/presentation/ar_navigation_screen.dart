@@ -1,11 +1,10 @@
 import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:latlong2/latlong.dart' hide Path;
+import '../../../core/theme/app_theme.dart';
 import '../data/ar_navigation_service.dart';
 import '../data/ar_navigation_launcher_service.dart';
 import 'ar_navigation_conditional_widget.dart';
@@ -25,7 +24,7 @@ class ARNavigationScreen extends StatefulWidget {
 }
 
 class _ARNavigationScreenState extends State<ARNavigationScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
 
@@ -45,6 +44,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeAnimationControllers();
     _initializeCamera();
     _requestPermissions();
@@ -52,6 +52,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cameraController?.dispose();
     _arrowAnimationController.dispose();
     _updateTimer?.cancel();
@@ -77,7 +78,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen>
     if (_cameras != null && _cameras!.isNotEmpty) {
       _cameraController = CameraController(
         _cameras![0],
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
       );
       await _cameraController!.initialize();
@@ -88,12 +89,27 @@ class _ARNavigationScreenState extends State<ARNavigationScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final camController = _cameraController;
+    if (camController == null) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      camController.dispose();
+      setState(() {
+        _cameraController = null;
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      _initializeCamera();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return Scaffold(
         appBar: AppBar(
           title: Text('AR Navigation to ${widget.buildingName}'),
-          backgroundColor: const Color(0xFF1C2A40),
+          backgroundColor: AppTheme.primaryBlue,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -102,7 +118,7 @@ class _ARNavigationScreenState extends State<ARNavigationScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text('AR Navigation to ${widget.buildingName}'),
-        backgroundColor: const Color(0xFF1C2A40),
+        backgroundColor: AppTheme.primaryBlue,
         actions: [
           ConditionalARIconButton(
             onPressed: () => _launchUnityARNavigation(),

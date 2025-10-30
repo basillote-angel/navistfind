@@ -394,7 +394,7 @@ class _AnimatedMatchCardState extends State<_AnimatedMatchCard>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.match.item?.name ?? 'Unknown Item',
+                              widget.match.item?.title ?? 'Unknown Item',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

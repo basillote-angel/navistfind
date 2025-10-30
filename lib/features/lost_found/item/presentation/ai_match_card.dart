@@ -79,7 +79,7 @@ class AiMatchCard extends StatelessWidget {
             if (item != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Similar to: ${item!.name}',
+                'Similar to: ${item!.title}',
                 style: TextStyle(fontSize: 13, color: Colors.purple.shade600),
               ),
               const SizedBox(height: 8),
@@ -95,7 +95,7 @@ class AiMatchCard extends StatelessWidget {
     final List<Widget> chips = [];
     chips.add(_whyChip('Category: ${item.category.name}'));
     // Avoid proximity/location language per spec
-    if (item.lost_found_date.isNotEmpty) {
+    if (item.date.isNotEmpty) {
       chips.add(_whyChip('Close date'));
     }
     // Prefer description similarity hint over name-only

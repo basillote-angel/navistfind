@@ -3,12 +3,14 @@ import 'package:navistfind/core/secure_storage.dart';
 import 'package:navistfind/features/auth/presentation/login_screen.dart';
 import 'package:navistfind/features/auth/presentation/register_screen.dart';
 import 'package:navistfind/features/auth/presentation/splash_screen.dart';
+import 'package:navistfind/features/home/presentation/recommendations_screen.dart';
 import 'package:flutter/material.dart';
 
 class AppRoutes {
   static const login = '/login';
   static const register = '/register';
   static const home = '/home';
+  static const recommendations = '/recommendations';
   static const checkAuth = '/';
   static const splash = '/splash';
 
@@ -17,6 +19,7 @@ class AppRoutes {
     login: (context) => const LoginScreen(),
     home: (context) => const NavigationWrapper(),
     register: (context) => const RegisterScreen(),
+    recommendations: (context) => const RecommendationsScreen(),
     checkAuth: (context) => FutureBuilder(
       future: SecureStorage.getToken(),
       builder: (context, snapshot) {

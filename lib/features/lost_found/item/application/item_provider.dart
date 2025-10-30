@@ -19,6 +19,12 @@ final itemDetailsProvider = FutureProvider.family<Item, int>((
   return await itemService.fetchItemDetails(itemId);
 });
 
+final itemDetailsWithTypeProvider =
+    FutureProvider.family<Item, ({int id, ItemType type})>((ref, args) async {
+      final itemService = ref.read(itemServiceProvider);
+      return await itemService.fetchItemDetails(args.id, type: args.type);
+    });
+
 final matchesItemsProvider = FutureProvider.family<List<MatchScoreItem>, int>((
   ref,
   itemId,

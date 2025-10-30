@@ -5,6 +5,7 @@ import 'dart:async';
 import 'ar_transition_screen.dart';
 import '../data/ar_navigation_launcher_service.dart';
 import 'ar_navigation_conditional_widget.dart';
+import 'package:navistfind/core/theme/app_theme.dart';
 
 class CampusMapScreen extends StatefulWidget {
   const CampusMapScreen({super.key});
@@ -23,16 +24,6 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
 
   // Debounced search timer
   Timer? _searchDebounceTimer;
-
-  static const List<String> categories = [
-    'All',
-    'Academic',
-    'Administrative',
-    'Recreational',
-    'Student Services',
-    'Service',
-    'Health Services',
-  ];
 
   static const List<Map<String, dynamic>> buildings = [
     {
@@ -162,102 +153,88 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: AppBar(
-          backgroundColor: const Color(0xFF1C2A40),
-          elevation: 2,
-          titleSpacing: 12,
-          centerTitle: false,
-          title: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search building',
-                        hintStyle: const TextStyle(fontSize: 14),
-                        suffixIcon: const Icon(Icons.search, size: 22),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+        preferredSize: const Size.fromHeight(80),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppTheme.primaryBlue,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(AppTheme.radiusXLarge),
+                  bottomRight: Radius.circular(AppTheme.radiusXLarge),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingL,
+                vertical: AppTheme.spacingM,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 44,
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search building',
+                          hintStyle: const TextStyle(fontSize: 14),
+                          suffixIcon: const Icon(Icons.search, size: 22),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusLarge,
+                            ),
+                            borderSide: BorderSide.none,
+                          ),
+                          fillColor: Colors.white,
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
                         ),
-                        fillColor: Colors.white,
-                        filled: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                        ),
-                      ),
-                      style: const TextStyle(fontSize: 14),
-                      onChanged: (value) {
-                        // Cancel previous timer
-                        _searchDebounceTimer?.cancel();
-                        
-                        // Debounce search to reduce performance impact
-                        _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
-                          if (mounted) {
-                            final newSearchQuery = value.toLowerCase();
-                            
-                            // Only update state if something actually changed
-                            if (_searchQuery != newSearchQuery) {
-                              setState(() {
-                                _searchQuery = newSearchQuery;
-                                _selectedBuildingName = null; // Reset selection on search change
-                              });
-                              
-                              // Clear cache to force recalculation
-                              _filteredBuildingsCache = null;
-                              
-                              final matches = filteredBuildings;
-                              if (matches.length == 1) {
-                                final target = matches.first["latLng"] as LatLng;
-                                _mapController.move(target, 19);
-                                setState(() {
-                                  _selectedBuildingName = matches.first["name"];
-                                });
+                        style: const TextStyle(fontSize: 14),
+                        onChanged: (value) {
+                          // Cancel previous timer
+                          _searchDebounceTimer?.cancel();
+
+                          // Debounce search to reduce performance impact
+                          _searchDebounceTimer = Timer(
+                            const Duration(milliseconds: 300),
+                            () {
+                              if (mounted) {
+                                final newSearchQuery = value.toLowerCase();
+
+                                // Only update state if something actually changed
+                                if (_searchQuery != newSearchQuery) {
+                                  setState(() {
+                                    _searchQuery = newSearchQuery;
+                                    _selectedBuildingName =
+                                        null; // Reset selection on search change
+                                  });
+
+                                  // Clear cache to force recalculation
+                                  _filteredBuildingsCache = null;
+
+                                  final matches = filteredBuildings;
+                                  if (matches.length == 1) {
+                                    final target =
+                                        matches.first["latLng"] as LatLng;
+                                    _mapController.move(target, 19);
+                                    setState(() {
+                                      _selectedBuildingName =
+                                          matches.first["name"];
+                                    });
+                                  }
+                                }
                               }
-                            }
-                          }
-                        });
-                      },
+                            },
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  height: 44,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButton<String>(
-                    value: _selectedCategory,
-                    underline: const SizedBox(),
-                    icon: const Icon(Icons.arrow_drop_down),
-                    dropdownColor: Colors.grey[200],
-                    style: const TextStyle(fontSize: 14, color: Colors.black),
-                    items: categories
-                        .map(
-                          (cat) =>
-                              DropdownMenuItem(value: cat, child: Text(cat)),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (_selectedCategory != value) {
-                        setState(() {
-                          _selectedCategory = value!;
-                          _selectedBuildingName = null;
-                        });
-                        // Clear cache to force recalculation
-                        _filteredBuildingsCache = null;
-                      }
-                    },
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -321,12 +298,14 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+        ),
+        contentPadding: const EdgeInsets.all(AppTheme.spacingXL),
         title: Text(
           building["name"],
           textAlign: TextAlign.center,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+          style: AppTheme.heading2,
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -335,10 +314,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
             children: [
               Text(building["description"]),
               const SizedBox(height: 16),
-              const Text(
-                "Rooms:",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              Text("Rooms:", style: AppTheme.heading4),
               const SizedBox(height: 8),
               ...List.generate(
                 building["rooms"].length,
@@ -363,6 +339,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
                 ),
               );
             },
+            style: AppTheme.getPrimaryButtonStyle(),
             child: const Text("Start AR Navigation"),
           ),
           ConditionalARButton(
@@ -374,7 +351,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            style: AppTheme.getSecondaryButtonStyle(),
             child: const Text("Close"),
           ),
         ],
@@ -397,7 +374,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
       }
     }
   }
-  
+
   @override
   void dispose() {
     _searchDebounceTimer?.cancel();

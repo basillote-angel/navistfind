@@ -1,4 +1,3 @@
-
 import 'package:navistfind/core/network/api_client.dart';
 import 'package:navistfind/core/secure_storage.dart';
 import 'package:navistfind/features/profile/application/profile_provider.dart';
@@ -8,10 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class AuthService {
   Future<String?> login(String email, String password) async {
     try {
-      final response = await ApiClient.client.post('/api/login', data: {
-        'email': email,
-        'password': password,
-      });
+      final response = await ApiClient.client.post(
+        '/api/login',
+        data: {'email': email, 'password': password},
+      );
 
       if (response.statusCode == 200) {
         final token = response.data['access_token'];
@@ -42,11 +41,10 @@ class AuthService {
 
   Future<String?> register(String name, String email, String password) async {
     try {
-      final response = await ApiClient.client.post('/api/register', data: {
-        'name': name,
-        'email': email,
-        'password': password,
-      });
+      final response = await ApiClient.client.post(
+        '/api/register',
+        data: {'name': name, 'email': email, 'password': password},
+      );
 
       if (response.statusCode == 200) {
         final token = response.data['access_token'];
@@ -69,7 +67,6 @@ class AuthService {
       final response = await ApiClient.client.post('/api/logout');
 
       if (response.statusCode == 200) {
-          
         final container = ProviderContainer();
         container.refresh(profileInfoProvider);
         container.dispose(); // Important to dispose to prevent memory leaks
@@ -77,11 +74,9 @@ class AuthService {
         await SecureStorage.clearToken();
 
         return null;
-        
       } else {
         return response.data['message'] ?? 'Logout failed';
       }
-
     } catch (e) {
       return 'Error: $e';
     }

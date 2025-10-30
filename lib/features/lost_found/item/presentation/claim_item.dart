@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/features/lost_found/item/data/item_service.dart';
 
 class ClaimItemPage extends StatefulWidget {
@@ -71,7 +72,7 @@ class _ClaimItemPageState extends State<ClaimItemPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Claim Item', style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF1C2A40),
+        backgroundColor: AppTheme.primaryBlue,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(

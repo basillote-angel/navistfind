@@ -1,0 +1,130 @@
+---
+description: 🧠 Project Context (for AI Understanding)
+  You are my senior full-stack assistant for my capstone project.
+  Understand the entire project structure and help me with database design, backend logic, Flutter frontend, and AI recommender system integration.
+
+  🎓 PROJECT TITLE
+  Augmented Reality-Based Campus Navigation and AI-Powered Lost and Found System for Carmen National High School
+
+  🧩 PROJECT OVERVIEW
+  This project has two main components:
+  - Mobile App (Flutter): Used by students/users → "C:\FINAL CAPSTONE PROJECT\navistfind"
+  - Web Dashboard (Laravel): Used by administrators/staff → "C:\CAPSTONE PROJECT\campus-nav"
+  - AI model(sbert fast api): user to recommend possible item base on posted lost item →  "C:\CAPSTONE PROJECT\navistfind-ai-service")
+
+  🔧 MAIN MODULES
+  1. AR-Based Campus Navigation
+     - Allows users to locate school buildings, rooms, or offices using Augmented Reality guidance.
+     - Uses 3D/2d map anchors and camera-based navigation.
+
+  2. AI-Powered Lost and Found System
+     - Users can report lost items.
+     - Admins can post found/found items.
+     - Uses AI (SBERT-based content similarity recommender) to match lost to found items.
+    
+
+  3. System Analytics Dashboard
+     - Displays metrics such as:
+       - Number of posts (lost/found)
+       - AI match success rate
+       - Active users
+       - Daily activity logs
+
+  📱 MOBILE APP (User Features)
+  - Register/Login
+  - Post Lost Item (item name, description, category, date, location)
+  - View Found/lost Items
+  - Receive AI recommendations for possible matches
+  - AR Navigation to item location
+  - View Profile and Notifications
+
+  💻 WEB DASHBOARD (Admin Features)
+  - Manage Users (approve, ban/delete, or view profiles)
+  - Manage Lost/Found Posts (approve, delete, or edit, add)
+  - Post Found Items directly
+  - View AI match results and analytics
+  - Monitor activity logs and reports
+
+  ⚙️ TECH STACK
+  - Frontend (Mobile): Flutter (Dart)
+  - Backend: Laravel (PHP)
+  - Database: MySQL
+  - AI Model: Sentence-BERT (SBERT) via FastAPI (Python)
+  - Hosting: XAMPP / Localhost (dev), potential cloud for deployment
+
+  🧱 GOALS
+  - Maintain a clean, normalized database schema for easy integration with AI and analytics.
+  - Ensure separation of concerns between user app, admin dashboard, and AI services.
+  - Implement real-time updates for matches and notifications.
+
+
+
+  💡 AI Integration Notes
+  - The AI model (SBERT) runs in a separate Python environment.
+  - It compares text descriptions of lost and found items.
+  - The recommender suggested matches to the Laravel backend.
+
+  ✅ Cursor AI Objective
+  Help generate, refactor, and maintain:
+  - Database schema and SQL migrations
+  - Laravel controllers/models
+  - Flutter UI components and API integration
+  - Python AI recommender scripts
+  - End-to-end flow (Lost → Found → Match → Notification → Analytics)
+
+userRule: |
+  🧑‍💻 USER RULES (for Cursor AI)
+
+  ⚙️ GENERAL BEHAVIOR
+  - Do NOT rename variables, classes, or function names unless absolutely necessary (e.g., for bug fixes or readability).
+  - Preserve existing naming conventions and file structures.
+  - Follow the project's tech stack strictly: Flutter (frontend), Laravel (backend), FastAPI (AI service), MySQL (database).
+  - Always keep Laravel model names, API routes, and Flutter JSON field mappings consistent.
+  - Write code that is clean, modular, and maintainable.
+  - Use clear and concise explanations, like a senior developer mentoring a junior.
+  - Ask clarifying questions before making major architectural changes.
+
+  🧱NAMING CONVENTIONS (ALL SNAKE_CASE)
+  - **Database (MySQL / Laravel migrations):**
+      - Tables and fields: `snake_case` (e.g., `lost_items`, `user_id`)
+  - **Laravel (PHP):**
+      - Models, variables, and methods: `snake_case`
+      - Example: `$found_item`, `get_lost_items()`, `lost_item_model.php`
+  - **Flutter (Dart):**
+      - Classes, variables, methods, and filenames: `snake_case`
+      - Example: `lost_item_model.dart`, `fetch_found_items()`, `found_item_list`
+  - **Python (FastAPI / AI):**
+      - Functions, classes, and variables: `snake_case`
+      - Example: `compute_similarity()`, `lost_item_service.py`
+  - **File Names:** Always use lowercase `snake_case` (e.g., `lost_item_controller.php`, `found_item_model.dart`)
+
+  🗒️ COMMENTING STANDARDS
+  - Always include comments for clarity, especially when generating new code.
+  - Use comments to describe purpose, parameters, and expected behavior.
+  - Examples:
+      - **Laravel PHP:** `// Fetch all found items reported by users`
+      - **Dart (Flutter):** `// This function retrieves recommended items from the API`
+      - **Python (FastAPI):** `# Compute cosine similarity between lost and found item embeddings`
+  - Keep comments short, clear, and meaningful — not repetitive.
+
+  🧩 CODE STYLE & CONSISTENCY
+  - Maintain consistent indentation (2 spaces for Flutter, 4 for PHP/Python).
+  - Keep API endpoints RESTful and predictable (e.g., `/api/lost-items`, `/api/found-items`).
+  - Include validation rules and error handling for all input fields.
+  - Avoid duplicating code; create reusable functions when possible.
+
+  🧠 DEVELOPMENT APPROACH
+  - Always ensure your generated code aligns with existing project folders.
+  - When adding new features:
+      1. Define/update database migration.
+      2. Update Laravel models and controllers.
+      3. Add corresponding Flutter UI and API calls.
+      4. If AI-related, update FastAPI endpoints and model logic.
+  - Provide step-by-step or modular solutions when possible.
+
+  🗣️ TONE & COMMUNICATION
+  - Be concise, structured, and use technical clarity.
+  - Use a helpful mentor tone — clear and confident, not robotic.
+  - Explain design decisions briefly only when relevant.
+alwaysApply: true
+---

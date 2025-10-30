@@ -1,5 +1,5 @@
-// ignore_for_file: unused_import
-import 'package:navistfind/core/navigation/app_routes.dart';
+import 'package:navistfind/core/theme/app_theme.dart';
+import 'package:navistfind/core/utils/category_utils.dart';
 import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
 import 'package:navistfind/features/lost_found/post-item/application/post_item_provider.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
@@ -36,6 +36,7 @@ class _EditItemScreenState extends ConsumerState<EditItemScreen> {
   late DateTime date;
   late ItemCategory? category;
   late final FocusNode _descriptionFocus;
+  final GlobalKey _descriptionKey = GlobalKey();
 
   @override
   void initState() {
@@ -44,57 +45,37 @@ class _EditItemScreenState extends ConsumerState<EditItemScreen> {
     description = widget.item.description;
     location = widget.item.location;
     date = DateTime.tryParse(widget.item.lostFoundDate) ?? DateTime.now();
-    category = ItemCategoryExtension.fromString(widget.item.category);
-    _descriptionFocus = FocusNode();
-    if (widget.focusDescription) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          FocusScope.of(context).requestFocus(_descriptionFocus);
-        }
-      });
+    // Try category name first, fallback to id mapping if provided
+    try {
+      category = ItemCategoryExtension.fromString(widget.item.category);
+    } catch (_) {
+      // if backend returns human label, fallback to 'others'
+      category = ItemCategory.others;
     }
+    _descriptionFocus = FocusNode();
+    // Always focus on description field when page opens to encourage better descriptions
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _descriptionFocus.requestFocus();
+            // Scroll to description field
+            Future.delayed(const Duration(milliseconds: 200), () {
+              final context = _descriptionKey.currentContext;
+              if (context != null && mounted) {
+                Scrollable.ensureVisible(
+                  context,
+                  duration: const Duration(milliseconds: 400),
+                  curve: Curves.easeInOut,
+                  alignment: 0.3, // Show field in upper portion of screen
+                );
+              }
+            });
+          }
+        });
+      }
+    });
   }
-
-  Color get _accent => const Color(0xFF1C2A40);
-
-  /*━━━━━━━━━━━━━━  UI helpers  ━━━━━━━━━━━━━━*/
-  Widget _label(String text) => Text(
-    text,
-    style: const TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.bold,
-      color: Color(0xFF1C2A40),
-    ),
-  );
-
-  InputDecoration _fieldDecoration({String? hint}) => InputDecoration(
-    hintText: hint,
-    filled: true,
-    fillColor: Colors.grey[200],
-    contentPadding: const EdgeInsets.all(16),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide.none,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0xFF1C2A40), width: 2),
-    ),
-  );
-
-  InputDecoration _dropdownDecoration() => InputDecoration(
-    filled: true,
-    fillColor: Colors.grey[200],
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide.none,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: Color(0xFF1C2A40), width: 2),
-    ),
-  );
 
   Future<void> _pickDate() async {
     final DateTime? picked = await showDatePicker(
@@ -118,8 +99,8 @@ class _EditItemScreenState extends ConsumerState<EditItemScreen> {
         .read(postItemProvider)
         .updateItem(
           itemId: widget.item.id,
-          itemName: itemName,
-          category: category!.apiValue,
+          title: itemName,
+          category: category!,
           description: description,
           location: location,
           date: date,
@@ -139,29 +120,30 @@ class _EditItemScreenState extends ConsumerState<EditItemScreen> {
       ref.invalidate(itemDetailsProvider(widget.item.id));
       // Navigate back to My Posts (Lost & Found screen is tabbed; keeping simple pop works if we came from it)
       Navigator.pop(context);
-      // Success green
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Item updated successfully'),
-          backgroundColor: Color(0xFF2E7D32),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Item updated successfully!'),
-          backgroundColor: _accent,
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 8),
+              Text('Item updated successfully!'),
+            ],
+          ),
+          backgroundColor: AppTheme.successGreen,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          duration: const Duration(seconds: 3),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),
-          backgroundColor: const Color(0xFFC62828), // error red
+          backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
     }
@@ -170,189 +152,562 @@ class _EditItemScreenState extends ConsumerState<EditItemScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(postItemStateProvider);
-    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1C2A40),
-        title: Text(
-          itemType == ItemType.lost ? 'Update Lost Item' : 'Update Found Item',
-          style: theme.textTheme.headlineSmall?.copyWith(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.chevron_left, size: 32, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF1C2A40)),
-            )
-          : SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: AppTheme.lightGray,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(100),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 16), // Top margin
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryBlue,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(AppTheme.radiusXLarge),
+                      bottomRight: Radius.circular(AppTheme.radiusXLarge),
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingL,
+                    vertical: AppTheme.spacingM,
+                  ),
+                  child: Row(
                     children: [
-                      // Item Name
-                      _label('Item Name'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        initialValue: itemName,
-                        decoration: _fieldDecoration(
-                          hint: 'e.g. Wallet, Backpack',
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.white,
                         ),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'This field is required'
-                            : null,
-                        onSaved: (v) => itemName = v!,
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      const SizedBox(height: 18),
-
-                      // Category
-                      _label('Category'),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<ItemCategory>(
-                        value: category,
-                        decoration: _dropdownDecoration(),
-                        items: ItemCategory.values
-                            .map(
-                              (c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c.label),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => category = v),
-                        validator: (v) =>
-                            v == null ? 'Please select a category' : null,
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Date
-                      _label('Date'),
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: _pickDate,
-                        borderRadius: BorderRadius.circular(10),
-                        child: InputDecorator(
-                          decoration: _dropdownDecoration(),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${date.day}/${date.month}/${date.year}',
-                                style: const TextStyle(
-                                  color: Color(0xFF1C2A40),
-                                ),
-                              ),
-                              const Icon(
-                                Icons.calendar_month_outlined,
-                                color: Color(0xFFF4B431),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Location
-                      _label('Location'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        initialValue: location,
-                        decoration: _fieldDecoration(
-                          hint: 'Where was the item lost/found?',
-                        ),
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'This field is required'
-                            : null,
-                        onSaved: (v) => location = v!,
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Description helper (no chips); highlight by focusing the field
-                      const Text(
-                        'Add color/brand or unique marks in the description to improve matches.',
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
-                      ),
-                      const SizedBox(height: 8),
-                      // Description
-                      _label('Short Description'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        initialValue: description,
-                        maxLines: 3,
-                        decoration:
-                            _fieldDecoration(
-                              hint: 'e.g., color, brand, special marks',
-                            ).copyWith(
-                              // Navy blue border to highlight where to type
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF1C2A40),
-                                  width: 1.5,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFF1C2A40),
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                        focusNode: _descriptionFocus,
-                        autofocus: widget.focusDescription,
-                        validator: (v) => v == null || v.isEmpty
-                            ? 'This field is required'
-                            : null,
-                        onSaved: (v) => description = v!,
-                      ),
-                      const SizedBox(height: 28),
-
-                      // Save Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _submit,
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.grey[200],
-                            backgroundColor: const Color(0xFF1C2A40),
-                            elevation: 2,
-                            shadowColor: const Color(
-                              0xFF1C2A40,
-                            ).withOpacity(0.2),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Save Changes',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            itemType == ItemType.lost
+                                ? 'Update Lost Item'
+                                : 'Update Found Item',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(width: 48), // Balance with back button
                     ],
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlue),
+            )
+          : SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Info Tip Section
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppTheme.primaryBlue.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.tips_and_updates_outlined,
+                              color: AppTheme.primaryBlue,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Enhance your description',
+                                    style: TextStyle(
+                                      color: AppTheme.darkText,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Add specific details like color, brand, size, or unique marks to improve matching accuracy',
+                                    style: TextStyle(
+                                      color: AppTheme.darkText.withOpacity(0.8),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w400,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Form Section
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Item Name Card
+                          _buildFormSection(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Item Name',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.darkText,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  initialValue: itemName,
+                                  decoration: InputDecoration(
+                                    labelText: 'Enter item name',
+                                    hintText: 'e.g. Wallet, Backpack, Keys',
+                                    prefixIcon: Icon(
+                                      Icons.shopping_bag,
+                                      color: AppTheme.primaryBlue,
+                                      size: 22,
+                                    ),
+                                    filled: true,
+                                    fillColor: AppTheme.lightPanel,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.1,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppTheme.primaryBlue,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.1,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    labelStyle: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textGray,
+                                    ),
+                                    floatingLabelStyle: const TextStyle(
+                                      color: AppTheme.primaryBlue,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  style: AppTheme.bodyMedium,
+                                  validator: (v) => v == null || v.isEmpty
+                                      ? 'This field is required'
+                                      : null,
+                                  onSaved: (v) => itemName = v!,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Category Card
+                          _buildFormSection(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Category',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.darkText,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _buildCategoryGrid(),
+                                if (category == null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Text(
+                                      'Please select a category',
+                                      style: TextStyle(
+                                        color: AppTheme.errorRed,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Date Card
+                          _buildFormSection(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Date Lost',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.darkText,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                InkWell(
+                                  onTap: _pickDate,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.lightPanel,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.1,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '${date.day}/${date.month}/${date.year}',
+                                          style: AppTheme.bodyMedium,
+                                        ),
+                                        Icon(
+                                          Icons.calendar_today,
+                                          color: AppTheme.primaryBlue,
+                                          size: 20,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Location Card
+                          _buildFormSection(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Location',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.darkText,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  initialValue: location,
+                                  decoration: InputDecoration(
+                                    labelText: 'Location',
+                                    hintText: 'Where was the item lost?',
+                                    prefixIcon: Icon(
+                                      Icons.location_on,
+                                      color: AppTheme.primaryBlue,
+                                      size: 22,
+                                    ),
+                                    filled: true,
+                                    fillColor: AppTheme.lightPanel,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.1,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppTheme.primaryBlue,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.1,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    labelStyle: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textGray,
+                                    ),
+                                    floatingLabelStyle: const TextStyle(
+                                      color: AppTheme.primaryBlue,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  style: AppTheme.bodyMedium,
+                                  validator: (v) => v == null || v.isEmpty
+                                      ? 'This field is required'
+                                      : null,
+                                  onSaved: (v) => location = v!,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Description Card
+                          _buildFormSection(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Description',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.darkText,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  key: _descriptionKey,
+                                  initialValue: description,
+                                  maxLines: 3,
+                                  decoration: InputDecoration(
+                                    labelText: 'Enter short description',
+                                    hintText:
+                                        'e.g., color, brand, special marks',
+                                    prefixIcon: Icon(
+                                      Icons.description,
+                                      color: AppTheme.primaryBlue,
+                                      size: 22,
+                                    ),
+                                    filled: true,
+                                    fillColor: AppTheme.lightPanel,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.1,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: const BorderSide(
+                                        color: AppTheme.primaryBlue,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryBlue.withOpacity(
+                                          0.1,
+                                        ),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    labelStyle: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.textGray,
+                                    ),
+                                    floatingLabelStyle: const TextStyle(
+                                      color: AppTheme.primaryBlue,
+                                      fontSize: 12,
+                                    ),
+                                    helperText:
+                                        'Be specific: mention color, brand, size, or unique features',
+                                    helperMaxLines: 2,
+                                    helperStyle: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.red.withOpacity(0.8),
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                  style: AppTheme.bodyMedium,
+                                  focusNode: _descriptionFocus,
+                                  autofocus:
+                                      false, // We handle focus manually in initState
+                                  validator: (v) => v == null || v.isEmpty
+                                      ? 'This field is required'
+                                      : null,
+                                  onSaved: (v) => description = v!,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                          // Save Button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryBlue,
+                                foregroundColor: Colors.white,
+                                elevation: 4,
+                                shadowColor: AppTheme.primaryBlue.withOpacity(
+                                  0.3,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle_outline,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Save Changes',
+                                    style: AppTheme.heading4.copyWith(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
+    );
+  }
+
+  Widget _buildFormSection({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: AppTheme.elevatedShadow,
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildCategoryGrid() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 1.2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: ItemCategory.values.length,
+      itemBuilder: (context, index) {
+        final cat = ItemCategory.values[index];
+        final isSelected = category == cat;
+
+        return GestureDetector(
+          onTap: () => setState(() => category = cat),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.primaryBlue : AppTheme.lightPanel,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected
+                    ? AppTheme.primaryBlue
+                    : AppTheme.primaryBlue.withOpacity(0.2),
+                width: isSelected ? 2 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CategoryUtils.getIcon(cat),
+                  color: isSelected ? Colors.white : AppTheme.primaryBlue,
+                  size: 24,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  cat.label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected ? Colors.white : AppTheme.darkText,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

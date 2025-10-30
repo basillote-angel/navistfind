@@ -1,20 +1,32 @@
 import 'package:navistfind/core/network/api_client.dart';
+import 'package:navistfind/core/utils/date_formatter.dart';
 import 'package:dio/dio.dart';
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
+import 'package:navistfind/features/lost_found/post-item/domain/category_id_mapping.dart';
 
 class ItemService {
   Future<List<Item>> fetchItems() async {
     try {
       final response = await ApiClient.client.get('/api/items');
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        return data.map((item) => Item.fromJson(item)).toList();
-      } else {
-        throw Exception('Failed to load items');
+      final status = response.statusCode ?? 500;
+      if (status == 200) {
+        final body = response.data;
+        if (body is List) {
+          return body.map((j) => Item.fromJson(j)).toList();
+        }
+        if (body is Map && body['data'] is List) {
+          final list = body['data'] as List;
+          return list.map((j) => Item.fromJson(j)).toList();
+        }
+        return <Item>[]; // unexpected format but not an error
       }
+      if (status == 204 || status == 404) {
+        return <Item>[];
+      }
+      throw Exception('Failed to load items (status: $status)');
     } catch (e) {
       if (e is DioException) {
         print(
@@ -26,9 +38,12 @@ class ItemService {
     }
   }
 
-  Future<Item> fetchItemDetails(int id) async {
+  Future<Item> fetchItemDetails(int id, {ItemType? type}) async {
     try {
-      final response = await ApiClient.client.get('/api/items/$id');
+      final response = await ApiClient.client.get(
+        '/api/items/$id',
+        queryParameters: {if (type != null) 'type': type.name},
+      );
 
       if (response.statusCode == 200) {
         final data = response.data;
@@ -116,9 +131,14 @@ class ItemService {
         params['query'] = query.trim();
       }
       if (type != null) params['type'] = type.name;
-      if (category != null) params['category'] = category.name;
-      if (dateFrom != null) params['dateFrom'] = _fmtDate(dateFrom);
-      if (dateTo != null) params['dateTo'] = _fmtDate(dateTo);
+      if (category != null) {
+        final id = categoryIdFromEnum(category);
+        if (id != null) params['category'] = id;
+      }
+      if (dateFrom != null)
+        params['dateFrom'] = DateFormatter.formatDateForApi(dateFrom);
+      if (dateTo != null)
+        params['dateTo'] = DateFormatter.formatDateForApi(dateTo);
       params['sort'] = sort;
 
       final response = await ApiClient.client.get(
@@ -126,8 +146,15 @@ class ItemService {
         queryParameters: params,
       );
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        return data.map((j) => Item.fromJson(j)).toList();
+        final body = response.data;
+        if (body is List) {
+          return body.map((j) => Item.fromJson(j)).toList();
+        }
+        if (body is Map && body['data'] is List) {
+          final list = body['data'] as List;
+          return list.map((j) => Item.fromJson(j)).toList();
+        }
+        return <Item>[];
       } else {
         throw Exception('Failed to load filtered items');
       }
@@ -140,10 +167,6 @@ class ItemService {
       print('Error: $e');
       rethrow;
     }
-  }
-
-  String _fmtDate(DateTime d) {
-    return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
   Future<Item> claimFoundItem({

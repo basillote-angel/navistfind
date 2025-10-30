@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import 'ar_navigation_launcher_widget.dart';
 
 class ARNavigationExampleScreen extends StatelessWidget {
@@ -9,7 +10,7 @@ class ARNavigationExampleScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('AR Navigation Examples'),
-        backgroundColor: const Color(0xFF1C2A40),
+        backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(

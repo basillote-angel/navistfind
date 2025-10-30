@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navistfind/features/lost_found/post-item/presentation/post_item_screen.dart';
 import 'package:navistfind/features/lost_found/item/presentation/lost_and_found.dart';
 import 'package:navistfind/features/navigate/presentation/campus_map_screen.dart';
+import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
+import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
+import 'package:navistfind/widgets/item_card.dart';
+import 'package:navistfind/features/lost_found/item/presentation/item_details_screen.dart';
+import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
+import 'package:navistfind/core/theme/app_theme.dart';
+import 'package:navistfind/core/utils/date_formatter.dart';
+import 'how_to_claim_screen.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({
     super.key,
     this.username = 'Angel',
@@ -14,25 +23,14 @@ class HomePage extends StatefulWidget {
   final int unreadNotifications;
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final TextEditingController searchController = TextEditingController();
-  final FocusNode searchFocusNode = FocusNode();
-
-  bool isSearchExpanded = false;
+class _HomePageState extends ConsumerState<HomePage> {
   int? pressedQuickActionIndex;
   bool showGreeting = true;
 
-  static const Color darkBlue = Color(0xFF123A7D);
-  static const Color navy = Color(0xFF1C2A40);
-  static const Color primaryBlue = Color(0xFF1F6FEB);
-  static const Color golden = Color(0xFFFFC857);
-  static const Color softYellow = Color(0xFFFFF4D8);
-  static const Color lightGray = Color(0xFFF4F6F8);
-  static const Color successGreen = Color(0xFF19A15F);
-  static const Color textGray = Color(0xFF6B7280);
+  // Using AppTheme constants instead of local constants
 
   late final PageController recommendationsController;
 
@@ -44,37 +42,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    searchController.dispose();
-    searchFocusNode.dispose();
     recommendationsController.dispose();
     super.dispose();
-  }
-
-  String formatFullDate(DateTime date) {
-    const weekdays = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   String getGreetingForNow() {
@@ -86,6 +55,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final recommendedAsync = ref.watch(recommendedItemsProvider);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -97,16 +67,12 @@ class _HomePageState extends State<HomePage> {
               _buildTopBar(),
               const SizedBox(height: 16),
               if (showGreeting) _buildGreetingBanner(),
-              const SizedBox(height: 16),
-              _buildSearchBar(),
               const SizedBox(height: 20),
               _buildQuickActionsGrid(),
               const SizedBox(height: 24),
-              _buildRecommendationsHeader(),
+              _buildRecommendationsHeader(context),
               const SizedBox(height: 12),
-              _buildSmartRecommendations(),
-              const SizedBox(height: 28),
-              _buildHelpInfo(),
+              _buildSmartRecommendations(context, recommendedAsync),
             ],
           ),
         ),
@@ -116,11 +82,17 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildTopBar() {
     return Container(
-      decoration: BoxDecoration(
-        color: navy,
-        borderRadius: BorderRadius.circular(14),
+      decoration: const BoxDecoration(
+        color: AppTheme.primaryBlue,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(AppTheme.radiusXLarge),
+          bottomRight: Radius.circular(AppTheme.radiusXLarge),
+        ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingL,
+        vertical: AppTheme.spacingM,
+      ),
       child: Row(
         children: [
           const Text(
@@ -151,7 +123,7 @@ class _HomePageState extends State<HomePage> {
                     height: 16,
                     padding: const EdgeInsets.symmetric(horizontal: 5),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent,
+                      color: AppTheme.errorRed,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white, width: 1),
                     ),
@@ -183,40 +155,39 @@ class _HomePageState extends State<HomePage> {
           children: [
             Container(
               width: double.infinity,
-              padding: EdgeInsets.fromLTRB(16, paddingV, 16, paddingV),
+              padding: EdgeInsets.fromLTRB(
+                AppTheme.spacingL,
+                paddingV,
+                AppTheme.spacingL,
+                paddingV,
+              ),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFFE8F0FF), Color(0xFFDFF7FF)],
-                ),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                gradient: AppTheme.cardGradient,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${getGreetingForNow()}, ${widget.username}! \uD83D\uDC4B',
+                    '${getGreetingForNow()}, ${widget.username}! 👋',
                     style: TextStyle(
                       fontSize: titleSize,
                       fontWeight: FontWeight.w800,
-                      color: darkBlue,
+                      color: AppTheme.primaryBlue,
                     ),
                     softWrap: true,
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     "Let's find what you lost today",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: textGray,
-                      fontWeight: FontWeight.w600,
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.textGray,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    formatFullDate(DateTime.now()),
-                    style: const TextStyle(fontSize: 13, color: textGray),
+                    DateFormatter.formatFullDate(DateTime.now()),
+                    style: AppTheme.bodySmall,
                   ),
                 ],
               ),
@@ -226,60 +197,26 @@ class _HomePageState extends State<HomePage> {
               top: 8,
               child: InkWell(
                 onTap: () => setState(() => showGreeting = false),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                 child: Container(
                   height: 28,
                   width: 28,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: AppTheme.elevatedShadow,
                   ),
-                  child: const Icon(Icons.close, size: 18, color: darkBlue),
+                  child: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: AppTheme.primaryBlue,
+                  ),
                 ),
               ),
             ),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOut,
-      height: isSearchExpanded ? 60 : 56,
-      decoration: BoxDecoration(
-        color: lightGray,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.search_rounded, color: textGray),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: searchController,
-              focusNode: searchFocusNode,
-              onTap: () => setState(() => isSearchExpanded = true),
-              decoration: const InputDecoration(
-                hintText: 'Search lost or found items...',
-                border: InputBorder.none,
-              ),
-              textInputAction: TextInputAction.search,
-              onSubmitted: (value) {},
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -315,9 +252,13 @@ class _HomePageState extends State<HomePage> {
         },
       ),
       _QuickAction(
-        icon: Icons.insights_outlined,
-        label: 'View Status',
-        onTap: () {},
+        icon: Icons.help_outline_rounded,
+        label: 'How to Claim',
+        onTap: () {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const HowToClaimScreen()));
+        },
       ),
     ];
 
@@ -329,8 +270,8 @@ class _HomePageState extends State<HomePage> {
         crossAxisCount: 4,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        // Slightly taller cells to avoid vertical overflow
-        childAspectRatio: 0.78,
+        // Increased aspect ratio to prevent overflow
+        childAspectRatio: 0.85,
       ),
       itemCount: actions.length,
       itemBuilder: (context, index) {
@@ -342,43 +283,35 @@ class _HomePageState extends State<HomePage> {
           onTapUp: (_) => setState(() => pressedQuickActionIndex = null),
           onTap: action.onTap,
           child: AnimatedScale(
-            duration: const Duration(milliseconds: 120),
+            duration: AppTheme.fastAnimation,
             scale: isPressed ? 0.96 : 1,
-            curve: Curves.easeOut,
+            curve: AppTheme.easeOutCurve,
             child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x0F000000),
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  ),
-                ],
+              decoration: AppTheme.getCardDecoration(
+                borderRadius: AppTheme.radiusLarge,
+                shadows: AppTheme.elevatedShadow,
               ),
-              padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _GradientCircleIcon(icon: action.icon, diameter: 38),
-                    const SizedBox(height: 6),
-                    Text(
+              padding: const EdgeInsets.fromLTRB(8, AppTheme.spacingS, 8, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _GradientCircleIcon(icon: action.icon, diameter: 36),
+                  const SizedBox(height: 4),
+                  Flexible(
+                    child: Text(
                       action.label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: AppTheme.caption.copyWith(
+                        color: AppTheme.primaryBlue,
                         fontWeight: FontWeight.w700,
-                        color: darkBlue,
-                        height: 1.15,
+                        height: 1.1,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -387,130 +320,93 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildRecommendationsHeader() {
+  Widget _buildRecommendationsHeader(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Text(
-          'Smart Recommendations',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: darkBlue,
-          ),
+      children: [
+        Row(
+          children: [
+            Text('Smart Recommendations', style: AppTheme.heading3),
+            const Spacer(),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pushNamed('/recommendations');
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryBlue,
+                textStyle: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              child: const Text('See all'),
+            ),
+          ],
         ),
-        SizedBox(height: 4),
-        Text(
-          'Based on your recent lost items',
-          style: TextStyle(
-            fontSize: 12,
-            color: textGray,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        const SizedBox(height: AppTheme.spacingXS),
+        Text('Based on your recent lost items', style: AppTheme.bodySmall),
       ],
     );
   }
 
-  Widget _buildSmartRecommendations() {
-    final recommendations = <_Recommendation>[
-      _Recommendation(
-        name: 'Black Wallet',
-        location: 'Found near Library',
-        similarityPercent: 96,
-        imageAsset: null,
-      ),
-      _Recommendation(
-        name: 'Blue ID Lanyard',
-        location: 'Admin Office',
-        similarityPercent: 92,
-        imageAsset: null,
-      ),
-      _Recommendation(
-        name: 'Gray Hoodie',
-        location: 'Gymnasium',
-        similarityPercent: 88,
-        imageAsset: null,
-      ),
-    ];
-
-    return SizedBox(
-      height: 260,
-      child: PageView.builder(
-        controller: recommendationsController,
-        padEnds: false,
-        itemCount: recommendations.length,
-        physics: const BouncingScrollPhysics(),
-        allowImplicitScrolling: false,
-        clipBehavior: Clip.hardEdge,
-        itemBuilder: (context, index) {
-          final rec = recommendations[index];
-          return Padding(
-            padding: EdgeInsets.only(
-              right: index == recommendations.length - 1 ? 0 : 14,
-            ),
-            child: _RecommendationCard(
-              recommendation: rec,
-              onViewDetails: () {},
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHelpInfo() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-      decoration: BoxDecoration(
-        color: softYellow,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: golden.withOpacity(0.5)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline_rounded, color: darkBlue),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Need Help?',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: darkBlue,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  "If you can’t find your item, try posting it under ‘Report Lost Item’. Our AI will continuously search for possible matches.",
-                  style: TextStyle(fontSize: 13, color: darkBlue, height: 1.3),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: darkBlue,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    onPressed: () {},
-                    child: const Text('Learn More'),
-                  ),
-                ),
-              ],
+  Widget _buildSmartRecommendations(
+    BuildContext context,
+    AsyncValue<List<MatchScoreItem>> recommendedAsync,
+  ) {
+    return recommendedAsync.when(
+      loading: () => SizedBox(
+        height: 240,
+        child: ListView.separated(
+          padding: EdgeInsets.zero,
+          scrollDirection: Axis.horizontal,
+          itemCount: 3,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (_, __) => Container(
+            width: 100,
+            decoration: BoxDecoration(
+              color: AppTheme.lightGray,
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
-        ],
+        ),
       ),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (matches) {
+        final sorted = [...matches]..sort((a, b) => b.score.compareTo(a.score));
+        final items = sorted.map((m) => m.item).whereType<Item>().toList();
+        if (items.isEmpty) {
+          return Container(
+            height: 44,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'No recommendations yet',
+              style: AppTheme.bodyMedium.copyWith(color: AppTheme.textGray),
+            ),
+          );
+        }
+        return SizedBox(
+          height: 240,
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (_, i) {
+              final item = items[i];
+              return ItemCard(
+                item: item,
+                cardWidth: 190,
+                radius: AppTheme.radiusXXLarge,
+                borderOpacity: 0.06,
+                borderWidth: 0.75,
+                onTap: () => showDialog(
+                  context: context,
+                  barrierDismissible: true,
+                  builder: (_) =>
+                      ItemDetailsModal(itemId: item.id, type: ItemType.found),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -540,7 +436,7 @@ class _GradientCircleIcon extends StatelessWidget {
           color: Colors.white,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: _HomePageState.darkBlue, size: diameter * 0.5),
+        child: Icon(icon, color: AppTheme.primaryBlue, size: diameter * 0.5),
       ),
     );
   }
@@ -554,123 +450,8 @@ class _QuickAction {
   final VoidCallback onTap;
 }
 
-class _Recommendation {
-  _Recommendation({
-    required this.name,
-    required this.location,
-    required this.similarityPercent,
-    this.imageAsset,
-  });
+// Legacy recommendation model removed (unused)
 
-  final String name;
-  final String location;
-  final int similarityPercent;
-  final String? imageAsset;
-}
-
-class _RecommendationCard extends StatelessWidget {
-  const _RecommendationCard({
-    required this.recommendation,
-    required this.onViewDetails,
-  });
-
-  final _Recommendation recommendation;
-  final VoidCallback onViewDetails;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: recommendation.imageAsset != null
-                ? Image.asset(
-                    recommendation.imageAsset!,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.low,
-                    width: double.infinity,
-                  )
-                : Container(
-                    width: double.infinity,
-                    color: const Color(0xFFF0F3F8),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      size: 56,
-                      color: _HomePageState.darkBlue,
-                    ),
-                  ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  recommendation.name,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: _HomePageState.darkBlue,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  recommendation.location,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: _HomePageState.textGray,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.verified_rounded,
-                      size: 18,
-                      color: _HomePageState.successGreen,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${recommendation.similarityPercent}% Match',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: _HomePageState.successGreen,
-                      ),
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: onViewDetails,
-                      style: TextButton.styleFrom(
-                        foregroundColor: _HomePageState.primaryBlue,
-                        textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      child: const Text('View Details'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// Legacy card removed (unused)
 
 // PulsingFab removed per request

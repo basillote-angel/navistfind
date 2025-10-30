@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
 import 'package:navistfind/features/lost_found/item/presentation/item_details_screen.dart';
-import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
-import 'package:navistfind/features/lost_found/item/presentation/item_helpers.dart';
+import 'package:navistfind/widgets/item_card.dart';
 
 class CategoryItemsView extends ConsumerStatefulWidget {
   final String title;
@@ -46,8 +45,8 @@ class _CategoryItemsViewState extends ConsumerState<CategoryItemsView> {
         preferredSize: const Size.fromHeight(64),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          color: const Color(0xFF1C2A40),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
+          color: const Color(0xFF123A7D),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Row(
             children: [
               if (!_isSearching)
@@ -71,7 +70,7 @@ class _CategoryItemsViewState extends ConsumerState<CategoryItemsView> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: const Color(0xFF1C2A40),
+                        color: const Color(0xFF123A7D),
                         width: 2,
                       ),
                     ),
@@ -79,13 +78,13 @@ class _CategoryItemsViewState extends ConsumerState<CategoryItemsView> {
                       controller: _searchController,
                       autofocus: true,
                       style: const TextStyle(
-                        color: Color(0xFF1C2A40),
+                        color: Color(0xFF123A7D),
                         fontSize: 16,
                       ),
                       decoration: InputDecoration(
                         hintText: 'Search',
                         hintStyle: const TextStyle(
-                          color: Color(0xFF1C2A40),
+                          color: Color(0xFF123A7D),
                           fontSize: 16,
                         ),
                         border: InputBorder.none,
@@ -96,7 +95,7 @@ class _CategoryItemsViewState extends ConsumerState<CategoryItemsView> {
                         suffixIcon: IconButton(
                           icon: const Icon(
                             Icons.close,
-                            color: Color(0xFF1C2A40),
+                            color: Color(0xFF123A7D),
                           ),
                           onPressed: () {
                             setState(() {
@@ -141,7 +140,7 @@ class _CategoryItemsViewState extends ConsumerState<CategoryItemsView> {
 
           if (widget.showRecentOnly) {
             filtered = filtered.where((item) {
-              final createdAt = DateTime.tryParse(item.created_at);
+              final createdAt = DateTime.tryParse(item.createdAt);
               return createdAt != null && now.difference(createdAt).inDays <= 5;
             }).toList();
           }
@@ -149,7 +148,7 @@ class _CategoryItemsViewState extends ConsumerState<CategoryItemsView> {
           if (_searchQuery.isNotEmpty) {
             filtered = filtered
                 .where(
-                  (item) => item.name.toLowerCase().contains(
+                  (item) => item.title.toLowerCase().contains(
                     _searchQuery.toLowerCase(),
                   ),
                 )
@@ -195,153 +194,22 @@ class _CategoryItemsViewState extends ConsumerState<CategoryItemsView> {
   }
 
   Widget _buildItemCard(BuildContext context, Item item) {
-    return GestureDetector(
-      onTap: () => showItemDetailsModal(context, item.id),
-      child: Container(
-        width: 150,
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(
-            color: const Color(0xFF1C2A40).withOpacity(0.2),
-            width: 1,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              height: 110,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C2A40),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  getCategoryIcon(item.category),
-                  size: 48,
-                  color: const Color(0xFFF4B431), // Accent yellow
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: const TextStyle(
-                      color: Color(0xFF1A1A1A),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  _buildTypeChip(item.type),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.place,
-                        size: 14,
-                        color: Color(0xFF1C2A40),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          item.location,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF1A1A1A),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: Color(0xFF1C2A40),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDate(item.created_at),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF1A1A1A),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return ItemCard(
+      item: item,
+      cardWidth: 150,
+      headerHeight: 110,
+      radius: 16,
+      borderOpacity: 0.2,
+      borderWidth: 1,
+      iconSize: 48,
+      titleFontSize: 15,
+      chipFontSize: 11,
+      onTap: () => showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => ItemDetailsModal(itemId: item.id, type: item.type),
       ),
     );
-  }
-
-  Widget _buildTypeChip(ItemType type) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: type == ItemType.lost ? Colors.red[100] : Colors.blue[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        type == ItemType.lost ? 'Lost' : 'Found',
-        style: TextStyle(
-          color: type == ItemType.lost ? Colors.red : Colors.blue,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final difference = now.difference(date);
-
-      if (difference.isNegative) return 'Just now';
-
-      if (difference.inDays > 7) {
-        return '${date.month}/${date.day}/${date.year}';
-      } else if (difference.inDays >= 2) {
-        return '${difference.inDays} days ago';
-      } else if (difference.inDays == 1) {
-        return 'Yesterday';
-      } else if (difference.inHours >= 1) {
-        return '${difference.inHours} hr${difference.inHours == 1 ? '' : 's'} ago';
-      } else if (difference.inMinutes >= 1) {
-        return '${difference.inMinutes} min ago';
-      } else {
-        return 'Just now';
-      }
-    } catch (e) {
-      return 'Unknown date';
-    }
   }
 }
 
