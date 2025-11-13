@@ -19,7 +19,7 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
   final MapController _mapController = MapController();
 
   String _searchQuery = '';
-  String _selectedCategory = 'All';
+  final String _selectedCategory = 'All';
   String? _selectedBuildingName;
 
   // Debounced search timer

@@ -37,7 +37,9 @@ final recommendedItemsProvider = FutureProvider<List<MatchScoreItem>>((
   ref,
 ) async {
   final itemService = ref.read(itemServiceProvider);
-  return await itemService.fetchRecommendedItems();
+  final items = await itemService.fetchRecommendedItems();
+  items.sort((a, b) => b.score.compareTo(a.score));
+  return items;
 });
 
 // Search/Filter state

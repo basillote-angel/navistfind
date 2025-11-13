@@ -135,10 +135,12 @@ class ItemService {
         final id = categoryIdFromEnum(category);
         if (id != null) params['category'] = id;
       }
-      if (dateFrom != null)
+      if (dateFrom != null) {
         params['dateFrom'] = DateFormatter.formatDateForApi(dateFrom);
-      if (dateTo != null)
+      }
+      if (dateTo != null) {
         params['dateTo'] = DateFormatter.formatDateForApi(dateTo);
+      }
       params['sort'] = sort;
 
       final response = await ApiClient.client.get(
@@ -189,7 +191,13 @@ class ItemService {
         data: payload,
       );
       if (response.statusCode == 200) {
-        return Item.fromJson(response.data);
+        final data = response.data;
+        // Handle response structure: {item: {...}, hasMultipleClaims: false}
+        if (data is Map && data['item'] != null) {
+          return Item.fromJson(data['item']);
+        }
+        // Fallback for backward compatibility if response is direct item object
+        return Item.fromJson(data);
       } else {
         throw Exception('Failed to submit claim');
       }

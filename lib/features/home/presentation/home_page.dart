@@ -14,6 +14,7 @@ import 'how_to_claim_screen.dart';
 import 'package:navistfind/widgets/section_header.dart';
 import 'package:navistfind/widgets/loading_placeholders.dart';
 import 'package:navistfind/features/notifications/presentation/notification_screen.dart';
+import 'package:navistfind/features/notifications/application/notifications_provider.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({
@@ -84,6 +85,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildTopBar() {
+    final notificationsAsync = ref.watch(notificationsProvider);
+    final int unreadCount = notificationsAsync.maybeWhen(
+      data: (list) => list.where((n) => !n.isRead).length,
+      orElse: () => 0,
+    );
     return Container(
       decoration: const BoxDecoration(
         color: AppTheme.primaryBlue,
@@ -124,7 +130,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   );
                 },
               ),
-              if (widget.unreadNotifications > 0)
+              if (unreadCount > 0)
                 Positioned(
                   right: 6,
                   top: 6,
@@ -138,7 +144,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      widget.unreadNotifications.toString(),
+                      unreadCount.toString(),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -372,11 +378,35 @@ class _HomePageState extends ConsumerState<HomePage> {
         final items = sorted.map((m) => m.item).whereType<Item>().toList();
         if (items.isEmpty) {
           return Container(
-            height: 44,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'No recommendations yet',
-              style: AppTheme.bodyMedium.copyWith(color: AppTheme.textGray),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              vertical: AppTheme.spacingXXXL,
+              horizontal: AppTheme.spacingXXL,
+            ),
+            decoration: BoxDecoration(
+              color: AppTheme.lightPanel,
+              borderRadius: BorderRadius.circular(AppTheme.radiusXXLarge),
+            ),
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.auto_awesome_outlined,
+                  size: 48,
+                  color: AppTheme.primaryBlue,
+                ),
+                const SizedBox(height: AppTheme.spacingM),
+                Text(
+                  'No recommendations yet',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textGray,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ),
           );
         }
@@ -448,9 +478,5 @@ class _QuickAction {
   final String label;
   final VoidCallback onTap;
 }
-
-// Legacy recommendation model removed (unused)
-
-// Legacy card removed (unused)
 
 // PulsingFab removed per request

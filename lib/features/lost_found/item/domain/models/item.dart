@@ -77,8 +77,16 @@ class Item {
         ? rawType
         : (json.containsKey('date_found') ? 'found' : 'lost');
 
+    // Ensure id is present and is an int
+    final itemId = json['id'];
+    if (itemId == null || itemId is! int) {
+      throw FormatException(
+        'Item.fromJson: missing or invalid id field. Received: $itemId',
+      );
+    }
+
     return Item(
-      id: json['id'],
+      id: itemId,
       ownerId: ownerId,
       finderId: finderId,
       posterId: (json['user_id'] is int) ? json['user_id'] as int : null,

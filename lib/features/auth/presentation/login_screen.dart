@@ -1,20 +1,58 @@
 import 'package:navistfind/core/navigation/app_routes.dart';
+import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/features/auth/application/auth_provider.dart';
 import 'package:navistfind/features/profile/application/profile_provider.dart';
+import 'package:navistfind/core/secure_storage.dart';
+import 'package:navistfind/widgets/google_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:navistfind/features/notifications/data/device_token_service.dart';
 
-class LoginScreen extends ConsumerWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final emailController = TextEditingController();
-    final passwordController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final isLoading = ref.watch(loginStateProvider);
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
 
-    final primaryColor = const Color(0xFF1C2A40);
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final formKey = GlobalKey<FormState>();
+  bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
+    final rememberMe = await SecureStorage.getRememberMe();
+    final savedEmail = await SecureStorage.getSavedEmail();
+
+    if (mounted) {
+      setState(() {
+        _rememberMe = rememberMe;
+        if (savedEmail != null && savedEmail.isNotEmpty) {
+          emailController.text = savedEmail;
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = ref.watch(loginStateProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -30,10 +68,10 @@ class LoginScreen extends ConsumerWidget {
 
                   Center(
                     child: SizedBox(
-                      width: 140,
-                      height: 140,
+                      width: 120,
+                      height: 120,
                       child: Transform.scale(
-                        scale: 1.6,
+                        scale: 1.2,
                         child: Image.asset(
                           'assets/images/navistfind_logo.png',
                           fit: BoxFit.contain,
@@ -42,14 +80,13 @@ class LoginScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 32),
 
                   // Welcome text
                   Text(
                     'Welcome Back',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    style: AppTheme.heading2.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -58,9 +95,9 @@ class LoginScreen extends ConsumerWidget {
 
                   Text(
                     'Please sign in to your account',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyLarge?.copyWith(color: Colors.black54),
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.textGray,
+                    ),
                     textAlign: TextAlign.center,
                   ),
 
@@ -76,18 +113,29 @@ class LoginScreen extends ConsumerWidget {
                         color: Colors.grey.shade600,
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor, width: 2),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(
+                          color: AppTheme.primaryBlue,
+                          width: 2,
+                        ),
                       ),
-                      floatingLabelStyle: TextStyle(color: primaryColor),
+                      floatingLabelStyle: TextStyle(
+                        color: AppTheme.primaryBlue,
+                      ),
                       contentPadding: const EdgeInsets.all(16),
                     ),
                     keyboardType: TextInputType.emailAddress,
@@ -104,7 +152,7 @@ class LoginScreen extends ConsumerWidget {
 
                   const SizedBox(height: 20),
 
-                  // Password input with border
+                  // Password input with visibility toggle
                   TextFormField(
                     controller: passwordController,
                     decoration: InputDecoration(
@@ -114,28 +162,49 @@ class LoginScreen extends ConsumerWidget {
                         Icons.lock_outline,
                         color: Colors.grey.shade600,
                       ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Colors.grey.shade600,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: primaryColor, width: 2),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(
+                          color: AppTheme.primaryBlue,
+                          width: 2,
+                        ),
                       ),
-                      floatingLabelStyle: TextStyle(color: primaryColor),
+                      floatingLabelStyle: TextStyle(
+                        color: AppTheme.primaryBlue,
+                      ),
                       contentPadding: const EdgeInsets.all(16),
                     ),
-                    obscureText: true,
+                    obscureText: _obscurePassword,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter password';
-                      }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
                       }
                       return null;
                     },
@@ -143,20 +212,47 @@ class LoginScreen extends ConsumerWidget {
 
                   const SizedBox(height: 12),
 
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // Add forgot password functionality here
-                      },
-                      child: Text(
-                        'Forgot Password?',
-                        style: TextStyle(color: primaryColor),
+                  // Remember Me and Forgot Password row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _rememberMe,
+                            onChanged: (value) {
+                              setState(() {
+                                _rememberMe = value ?? false;
+                              });
+                            },
+                            activeColor: AppTheme.primaryBlue,
+                          ),
+                          Text(
+                            'Remember me',
+                            style: AppTheme.bodySmall.copyWith(
+                              color: AppTheme.textGray,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.forgotPassword,
+                          );
+                        },
+                        child: Text(
+                          'Forgot Password?',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppTheme.primaryBlue,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   SizedBox(
                     height: 56,
@@ -177,39 +273,83 @@ class LoginScreen extends ConsumerWidget {
                                     false;
 
                                 if (error == null) {
+                                  // Save Remember Me preference and email
+                                  await SecureStorage.setRememberMe(
+                                    _rememberMe,
+                                  );
+                                  if (_rememberMe) {
+                                    await SecureStorage.saveEmail(
+                                      emailController.text.trim(),
+                                    );
+                                  } else {
+                                    await SecureStorage.clearSavedEmail();
+                                  }
+
                                   ref.invalidate(profileInfoProvider);
                                   ref.invalidate(postedItemsProvider);
 
-                                  Navigator.pushReplacementNamed(
-                                    context,
-                                    AppRoutes.home,
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Login successful'),
-                                      backgroundColor: Color(0xFF2E7D32),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
+                                  // Register device token immediately after successful login
+                                  try {
+                                    final fcmToken = await FirebaseMessaging
+                                        .instance
+                                        .getToken();
+                                    if (fcmToken != null) {
+                                      await DeviceTokenService().registerToken(
+                                        fcmToken,
+                                      );
+                                    }
+                                  } catch (_) {}
+
+                                  if (mounted) {
+                                    Navigator.pushReplacementNamed(
+                                      context,
+                                      AppRoutes.home,
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Row(
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle_outline,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                            SizedBox(width: 12),
+                                            Expanded(
+                                              child: Text('Login successful'),
+                                            ),
+                                          ],
+                                        ),
+                                        backgroundColor: AppTheme.successGreen,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(error),
-                                      backgroundColor: Color(0xFFC62828),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(child: Text(error)),
+                                          ],
+                                        ),
+                                        backgroundColor: AppTheme.errorRed,
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: const Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
                                 }
                               }
                             },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
+                      style: AppTheme.getPrimaryButtonStyle(),
                       child: isLoading
                           ? SizedBox(
                               height: 24,
@@ -231,7 +371,129 @@ class LoginScreen extends ConsumerWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 20),
+
+                  // Divider with "OR"
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'OR',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppTheme.textGray,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Google Sign-In Button
+                  SizedBox(
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              ref.read(loginStateProvider.notifier).state =
+                                  true;
+                              final error = await ref
+                                  .read(authProvider)
+                                  .signInWithGoogle();
+                              ref.read(loginStateProvider.notifier).state =
+                                  false;
+
+                              if (error == null) {
+                                // Register device token after successful Google sign-in
+                                try {
+                                  final fcmToken = await FirebaseMessaging
+                                      .instance
+                                      .getToken();
+                                  if (fcmToken != null) {
+                                    await DeviceTokenService().registerToken(
+                                      fcmToken,
+                                    );
+                                  }
+                                } catch (_) {}
+
+                                ref.invalidate(profileInfoProvider);
+                                ref.invalidate(postedItemsProvider);
+
+                                if (mounted) {
+                                  Navigator.pushReplacementNamed(
+                                    context,
+                                    AppRoutes.home,
+                                  );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Row(
+                                        children: [
+                                          Icon(
+                                            Icons.check_circle_outline,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                          SizedBox(width: 12),
+                                          Expanded(
+                                            child: Text(
+                                              'Signed in with Google successfully',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: AppTheme.successGreen,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              } else if (error != 'Sign-in was canceled') {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.error_outline,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(child: Text(error)),
+                                        ],
+                                      ),
+                                      backgroundColor: AppTheme.errorRed,
+                                      behavior: SnackBarBehavior.floating,
+                                      duration: const Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      icon: const GoogleIcon(size: 24),
+                      label: const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
 
                   // Register prompt
                   Row(
@@ -239,7 +501,9 @@ class LoginScreen extends ConsumerWidget {
                     children: [
                       Text(
                         "Don't have an account? ",
-                        style: TextStyle(color: Colors.black54),
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppTheme.textGray,
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
@@ -250,8 +514,8 @@ class LoginScreen extends ConsumerWidget {
                         },
                         child: Text(
                           'Register here',
-                          style: TextStyle(
-                            color: primaryColor,
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.primaryBlue,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

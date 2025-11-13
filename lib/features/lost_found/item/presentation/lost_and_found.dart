@@ -284,14 +284,6 @@ class _MyPostsTab extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppTheme.spacingXL),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const PostItemScreen())),
-              icon: const Icon(Icons.add_circle_outline),
-              label: const Text('Post Your First Item'),
-              style: AppTheme.getPrimaryButtonStyle(),
-            ),
           ],
         ),
       ),
@@ -647,7 +639,7 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
   final TextEditingController _searchController = TextEditingController();
 
   // Collapsible categories state - "Recently Posted Items" expanded by default
-  Set<String> _expandedCategories = {'Recently Posted Items'};
+  final Set<String> _expandedCategories = {'Recently Posted Items'};
 
   // TabController to track active tab
   late TabController _tabController;
@@ -1087,8 +1079,6 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
       },
     );
   }
-
-  // _filterItemsInternal removed (unused)
 
   /// Get icon for category SECTION headers (e.g., "Recently Posted Items", "Electronic")
   /// Different from item category icons - this is for UI section headers

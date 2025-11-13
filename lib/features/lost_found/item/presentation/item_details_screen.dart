@@ -875,12 +875,6 @@ class ItemDetailsModal extends ConsumerWidget {
                                           ),
                                         );
                                       },
-                                      child: const Text(
-                                        'Not mine',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
                                       style: OutlinedButton.styleFrom(
                                         foregroundColor: AppTheme.darkText,
                                         side: BorderSide(
@@ -894,6 +888,12 @@ class ItemDetailsModal extends ConsumerWidget {
                                           borderRadius: BorderRadius.circular(
                                             AppTheme.radiusMedium,
                                           ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Not mine',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -911,12 +911,6 @@ class ItemDetailsModal extends ConsumerWidget {
                                           ),
                                         );
                                       },
-                                      child: const Text(
-                                        'This is mine',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppTheme.primaryBlue,
                                         foregroundColor: Colors.white,
@@ -929,6 +923,12 @@ class ItemDetailsModal extends ConsumerWidget {
                                           ),
                                         ),
                                         elevation: 2,
+                                      ),
+                                      child: const Text(
+                                        'This is mine',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
                                   ),

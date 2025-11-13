@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1027515736857",
+    "project_id": "navistfind",
+    "storage_bucket": "navistfind.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1027515736857:android:a3f531595398e942739b88",
+        "android_client_info": {
+          "package_name": "com.navistfind.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJAjyEKEy8fPV4FQHbItndJsUNlgrG77w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

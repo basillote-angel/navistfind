@@ -2,6 +2,7 @@ import 'package:navistfind/core/network/api_client.dart';
 import 'package:dio/dio.dart';
 import 'package:navistfind/features/profile/domain/models/posted-item.dart';
 import 'package:navistfind/features/profile/domain/models/user.dart';
+import 'package:navistfind/features/profile/domain/models/claim_request.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 
 class ProfileService {
@@ -73,15 +74,12 @@ class ProfileService {
   }
 
   Future<void> deleteItem(int id, {ItemType? type}) async {
-    // Debug logging
-    // Prefer query param for DELETE to ensure Laravel receives type
     final query = type != null ? '?type=${type.name}' : '';
     // ignore: avoid_print
     print('DELETE /api/items/$id$query');
     final response = await ApiClient.client.delete(
       '/api/items/$id$query',
       options: Options(
-        // Always return Response so we can log status/body even on errors
         validateStatus: (status) => true,
         contentType: Headers.jsonContentType,
       ),
@@ -93,7 +91,6 @@ class ProfileService {
       return;
     }
 
-    // Fallback: if not found and we sent a type, try the opposite type once
     if (status == 404 && type != null) {
       final altType = type == ItemType.lost ? ItemType.found : ItemType.lost;
       final altQuery = '?type=${altType.name}';
@@ -113,17 +110,130 @@ class ProfileService {
         return;
       }
       if (retryStatus == 404) {
-        // Treat 404 as idempotent success after trying both types
         return;
       }
       throw Exception('Failed to delete item (status: $retryStatus)');
     }
 
-    // If no type was provided and server says 404, treat as idempotent success
     if (status == 404) {
       return;
     }
 
     throw Exception('Failed to delete item (status: $status)');
+  }
+
+  Future<List<ClaimRequest>> fetchClaimRequests() async {
+    try {
+      final response = await ApiClient.client.get('/api/me/claims');
+      final status = response.statusCode ?? 500;
+
+      if (status == 200) {
+        final body = response.data;
+        if (body is List) {
+          final List<ClaimRequest> parsed = [];
+          for (final entry in body) {
+            if (entry is Map) {
+              try {
+                parsed.add(
+                  ClaimRequest.fromJson(Map<String, dynamic>.from(entry)),
+                );
+              } catch (_) {
+                // skip malformed rows
+              }
+            }
+          }
+          return parsed;
+        }
+        if (body is Map && body['data'] is List) {
+          final list = body['data'] as List;
+          final List<ClaimRequest> parsed = [];
+          for (final entry in list) {
+            if (entry is Map) {
+              try {
+                parsed.add(
+                  ClaimRequest.fromJson(Map<String, dynamic>.from(entry)),
+                );
+              } catch (_) {
+                // skip malformed rows
+              }
+            }
+          }
+          return parsed;
+        }
+        return <ClaimRequest>[];
+      }
+
+      if (status == 204 || status == 404) {
+        return <ClaimRequest>[];
+      }
+
+      throw Exception('Failed to load claim requests (status: $status)');
+    } catch (error) {
+      // ignore: avoid_print
+      print('Error fetching claim requests: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> cancelClaim(int id) async {
+    try {
+      final response = await ApiClient.client.delete('/api/me/claims/$id');
+      final status = response.statusCode ?? 0;
+
+      if (status >= 200 && status < 300) {
+        return;
+      }
+
+      throw Exception('Failed to cancel claim (status: $status)');
+    } catch (error) {
+      if (error is DioException) {
+        // ignore: avoid_print
+        print(
+          'DELETE /api/me/claims/$id failed: status=${error.response?.statusCode} data=${error.response?.data}',
+        );
+      } else {
+        // ignore: avoid_print
+        print('Error cancelling claim: $error');
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> updateClaim({
+    required int id,
+    required String message,
+    String? contactName,
+    String? contactInfo,
+  }) async {
+    final payload = <String, dynamic>{'message': message};
+    if (contactName != null && contactName.trim().isNotEmpty) {
+      payload['contactName'] = contactName.trim();
+    }
+    if (contactInfo != null && contactInfo.trim().isNotEmpty) {
+      payload['contactInfo'] = contactInfo.trim();
+    }
+
+    try {
+      final response = await ApiClient.client.put(
+        '/api/me/claims/$id',
+        data: payload,
+      );
+      final status = response.statusCode ?? 0;
+      if (status >= 200 && status < 300) {
+        return;
+      }
+      throw Exception('Failed to update claim (status: $status)');
+    } catch (error) {
+      if (error is DioException) {
+        // ignore: avoid_print
+        print(
+          'PUT /api/me/claims/$id failed: status=${error.response?.statusCode} data=${error.response?.data}',
+        );
+      } else {
+        // ignore: avoid_print
+        print('Error updating claim: $error');
+      }
+      rethrow;
+    }
   }
 }
