@@ -1,5 +1,7 @@
 import 'package:navistfind/features/lost_found/item/domain/enums/item_status.dart';
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
+import 'package:navistfind/features/lost_found/post-item/domain/category_id_mapping.dart';
+import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 
 class PostedItem {
@@ -38,17 +40,58 @@ class PostedItem {
   });
 
   factory PostedItem.fromJson(Map<String, dynamic> json) {
+    final itemType = ItemTypeExtension.fromString(
+      (json['type'] ?? '').toString(),
+    );
+    final statusValue = ItemStatusExtension.safeValue(
+      json['status']?.toString(),
+      fallback: itemType == ItemType.lost
+          ? ItemStatus.lostReported
+          : ItemStatus.foundUnclaimed,
+    );
+
+    int? categoryId = json['category_id'] is int
+        ? json['category_id'] as int
+        : null;
+    String? categoryName = json['category_name']?.toString();
+    final categoryRaw = json['category'];
+    if ((categoryName == null || categoryName.isEmpty) && categoryRaw != null) {
+      if (categoryRaw is Map) {
+        final map = Map<String, dynamic>.from(categoryRaw);
+        categoryName = map['name']?.toString();
+        categoryId ??= map['id'] is int
+            ? map['id'] as int
+            : int.tryParse('${map['id']}');
+      } else if (categoryRaw is String) {
+        categoryName = categoryRaw;
+      }
+    }
+
+    ItemCategory? resolvedCategory;
+    if (categoryName != null && categoryName.isNotEmpty) {
+      try {
+        resolvedCategory = ItemCategoryExtension.fromString(categoryName);
+      } catch (_) {}
+    }
+    resolvedCategory ??= categoryEnumFromId(categoryId);
+
+    registerCategoryMapping(
+      category: resolvedCategory ?? ItemCategory.others,
+      id: categoryId,
+      name: categoryName ?? resolvedCategory?.label,
+    );
+
     return PostedItem(
       id: json['id'],
       name: (json['title'] ?? json['name'] ?? '').toString(),
-      category: (json['category_name'] ?? json['category'] ?? '').toString(),
-      categoryId: json['category_id'],
-      categoryName: (json['category_name'] ?? json['category'])?.toString(),
+      category: resolvedCategory?.label ?? (categoryName ?? 'Others'),
+      categoryId: categoryId,
+      categoryName: categoryName ?? resolvedCategory?.label,
       description: json['description'] ?? '',
       ownerId: json['owner_id'],
       finderId: json['finder_id'],
-      status: ItemStatusExtension.fromString((json['status'] ?? '').toString()),
-      type: ItemTypeExtension.fromString((json['type'] ?? '').toString()),
+      status: statusValue,
+      type: itemType,
       location: json['location'] ?? '',
       lostFoundDate:
           (json['date'] ??

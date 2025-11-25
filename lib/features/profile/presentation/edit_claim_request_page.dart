@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/core/utils/snackbar_utils.dart';
-import 'package:navistfind/features/profile/application/profile_provider.dart';
+import 'package:navistfind/features/lost_found/item/application/claim_provider.dart';
 import 'package:navistfind/features/profile/domain/models/claim_request.dart';
 
 class EditClaimRequestPage extends ConsumerStatefulWidget {
@@ -51,7 +51,7 @@ class _EditClaimRequestPageState extends ConsumerState<EditClaimRequestPage> {
 
     final notifier = ref.read(claimRequestsProvider.notifier);
     final error = await notifier.updateClaim(
-      claimId: widget.claim.id,
+      itemId: widget.claim.foundItemId,
       message: _messageController.text.trim(),
       contactName: _contactNameController.text.trim(),
       contactInfo: _contactInfoController.text.trim(),
@@ -151,7 +151,7 @@ class _EditClaimRequestPageState extends ConsumerState<EditClaimRequestPage> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              widget.claim.foundItem?.title ??
+                              widget.claim.foundItemTitle ??
                                   'Claim Information',
                               style: AppTheme.heading3.copyWith(
                                 color: AppTheme.primaryBlue,

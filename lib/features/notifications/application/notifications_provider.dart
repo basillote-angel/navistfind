@@ -37,20 +37,7 @@ class NotificationsNotifier
     if (current == null) return;
     state = AsyncValue.data(
       current
-          .map(
-            (n) => n.id == id
-                ? AppNotification(
-                    id: n.id,
-                    type: n.type,
-                    title: n.title,
-                    body: n.body,
-                    createdAt: n.createdAt,
-                    readAt: DateTime.now(),
-                    relatedId: n.relatedId,
-                    score: n.score,
-                  )
-                : n,
-          )
+          .map((n) => n.id == id ? n.copyWith(readAt: DateTime.now()) : n)
           .toList(),
     );
     await _read.read(notificationsServiceProvider).markRead(id);

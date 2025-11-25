@@ -43,9 +43,21 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       final res = await core.ApiClient.client.get('/api/items/recommended');
       if (res.statusCode == 200) {
         final data = res.data;
-        final List<dynamic> list = data is List
-            ? data
-            : (data['data'] as List? ?? []);
+
+        // Support both new format (with flat/grouped) and old format (direct list)
+        List<dynamic> list;
+        if (data is Map && data['flat'] != null) {
+          // New format with flat and grouped
+          list = data['flat'] as List;
+        } else if (data is List) {
+          // Old format (backward compatible)
+          list = data;
+        } else if (data is Map && data['data'] != null) {
+          list = data['data'] as List;
+        } else {
+          list = [];
+        }
+
         final parsed = list.map((e) => MatchScoreItem.fromJson(e)).toList();
         setState(() {
           _items = parsed..sort((a, b) => b.score.compareTo(a.score));
@@ -126,7 +138,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                       const Expanded(
                         child: Center(
                           child: Text(
-                            'Smart Recommendations',
+                            'Recommended for You',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -166,30 +178,26 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
   }
 
   Widget _buildLoadingState() {
-    return Padding(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      child: Column(
-        children: [
-          const SizedBox(height: AppTheme.spacingXXL),
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingXL),
-            decoration: AppTheme.getCardDecoration(
-              borderRadius: AppTheme.radiusLarge,
-            ),
-            child: Column(
-              children: [
-                const CircularProgressIndicator(color: AppTheme.primaryBlue),
-                const SizedBox(height: AppTheme.spacingL),
-                Text(
-                  'Loading recommendations...',
-                  style: AppTheme.bodyLarge.copyWith(color: AppTheme.textGray),
-                ),
-              ],
-            ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacingL),
+        child: Container(
+          padding: const EdgeInsets.all(AppTheme.spacingXL),
+          decoration: AppTheme.getCardDecoration(
+            borderRadius: AppTheme.radiusLarge,
           ),
-          const SizedBox(height: AppTheme.spacingL),
-          ...List.generate(3, (index) => _buildSkeletonCard()),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: AppTheme.primaryBlue),
+              const SizedBox(height: AppTheme.spacingL),
+              Text(
+                'Loading recommendations...',
+                style: AppTheme.bodyLarge.copyWith(color: AppTheme.textGray),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -349,7 +357,7 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
               if (item == null) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
-                child: _buildRecommendationCard(item),
+                child: _buildRecommendationCard(item, match),
               );
             }, childCount: _items.length),
           ),
@@ -358,7 +366,10 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     );
   }
 
-  Widget _buildRecommendationCard(Item item) {
+  Widget _buildRecommendationCard(Item item, [MatchScoreItem? match]) {
+    final lostItem = match?.lostItem;
+    final score = match?.score ?? 0.0;
+
     return Container(
       decoration: AppTheme.getCardDecoration(
         borderRadius: AppTheme.radiusLarge,
@@ -378,70 +389,132 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
           },
           child: Padding(
             padding: const EdgeInsets.all(AppTheme.spacingL),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Category Icon
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: AppTheme.lightPanel,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                  ),
-                  child: Icon(
-                    CategoryUtils.getIcon(item.category),
-                    color: AppTheme.primaryBlue,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacingL),
-                // Item Details - Simplified
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // Badge row - only show if lost item info available
+                if (lostItem != null) ...[
+                  Row(
                     children: [
-                      Text(
-                        item.title,
-                        style: AppTheme.heading4,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: AppTheme.spacingXS),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.place_outlined,
-                            size: 14,
-                            color: AppTheme.textGray,
+                      // Lost item badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingS,
+                          vertical: AppTheme.spacingXS,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusSmall,
                           ),
-                          const SizedBox(width: AppTheme.spacingXS),
-                          Expanded(
-                            child: Text(
-                              item.location,
-                              style: AppTheme.bodySmall,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Matches: ${lostItem.title}',
+                              style: AppTheme.caption.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.primaryBlue,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time_outlined,
-                            size: 14,
-                            color: AppTheme.textGray,
+                      const Spacer(),
+                      // Match score badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppTheme.spacingS,
+                          vertical: AppTheme.spacingXS,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getScoreColor(score).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusSmall,
                           ),
-                          const SizedBox(width: AppTheme.spacingXS),
-                          Text(
-                            DateFormatter.formatRelativeDate(item.date),
-                            style: AppTheme.caption,
+                        ),
+                        child: Text(
+                          '${(score * 100).toStringAsFixed(0)}%',
+                          style: AppTheme.caption.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: _getScoreColor(score),
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: AppTheme.spacingM),
+                ],
+                // Item details - existing layout
+                Row(
+                  children: [
+                    // Category Icon
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppTheme.lightPanel,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                      ),
+                      child: Icon(
+                        CategoryUtils.getIcon(item.category),
+                        color: AppTheme.primaryBlue,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacingL),
+                    // Item Details - Simplified
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: AppTheme.heading4,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: AppTheme.spacingXS),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.place_outlined,
+                                size: 14,
+                                color: AppTheme.textGray,
+                              ),
+                              const SizedBox(width: AppTheme.spacingXS),
+                              Expanded(
+                                child: Text(
+                                  item.location,
+                                  style: AppTheme.bodySmall,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.access_time_outlined,
+                                size: 14,
+                                color: AppTheme.textGray,
+                              ),
+                              const SizedBox(width: AppTheme.spacingXS),
+                              Text(
+                                DateFormatter.formatRelativeDate(item.date),
+                                style: AppTheme.caption,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -451,16 +524,9 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     );
   }
 
-  Widget _buildSkeletonCard() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.spacingL),
-      child: Container(
-        height: 100,
-        decoration: BoxDecoration(
-          color: AppTheme.lightGray,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-      ),
-    );
+  Color _getScoreColor(double score) {
+    if (score >= 0.8) return AppTheme.successGreen;
+    if (score >= 0.6) return AppTheme.warningOrange;
+    return AppTheme.textGray;
   }
 }

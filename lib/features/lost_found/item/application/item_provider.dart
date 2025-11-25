@@ -33,13 +33,24 @@ final matchesItemsProvider = FutureProvider.family<List<MatchScoreItem>, int>((
   return await itemService.fetchMatchesItems(itemId);
 });
 
+// Provider to track dismissed items (items user clicked "not mine" on)
+// This enables instant removal from recommendations without waiting for backend
+final dismissedItemsProvider = StateProvider<Set<int>>((ref) => <int>{});
+
 final recommendedItemsProvider = FutureProvider<List<MatchScoreItem>>((
   ref,
 ) async {
   final itemService = ref.read(itemServiceProvider);
   final items = await itemService.fetchRecommendedItems();
   items.sort((a, b) => b.score.compareTo(a.score));
-  return items;
+
+  // Client-side filtering: Remove dismissed items immediately
+  final dismissedItems = ref.watch(dismissedItemsProvider);
+  return items.where((match) {
+    // Keep item only if it's NOT in dismissed list
+    if (match.item == null) return false;
+    return !dismissedItems.contains(match.item!.id);
+  }).toList();
 });
 
 // Search/Filter state

@@ -227,17 +227,6 @@ class ItemDialogs {
   }
 
   static String _statusLabel(ItemStatus status) {
-    switch (status) {
-      case ItemStatus.open:
-        return 'Open';
-      case ItemStatus.matched:
-        return 'Matched';
-      case ItemStatus.returned:
-        return 'Returned';
-      case ItemStatus.closed:
-        return 'Closed';
-      case ItemStatus.unclaimed:
-        return 'Unclaimed';
-    }
+    return status.displayLabel;
   }
 }

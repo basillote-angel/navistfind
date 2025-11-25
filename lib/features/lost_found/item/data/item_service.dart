@@ -1,10 +1,12 @@
 import 'package:navistfind/core/network/api_client.dart';
 import 'package:navistfind/core/utils/date_formatter.dart';
 import 'package:dio/dio.dart';
+import 'package:navistfind/features/lost_found/item/domain/enums/item_status.dart';
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/category_id_mapping.dart';
+import 'dart:io';
 
 class ItemService {
   Future<List<Item>> fetchItems() async {
@@ -46,8 +48,21 @@ class ItemService {
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        return Item.fromJson(data);
+        final raw = response.data;
+        Map<String, dynamic>? payload;
+        if (raw is Map<String, dynamic>) {
+          if (raw['data'] is Map) {
+            payload = Map<String, dynamic>.from(raw['data'] as Map);
+          } else {
+            payload = raw;
+          }
+        } else if (raw is Map) {
+          payload = Map<String, dynamic>.from(raw);
+        }
+        if (payload != null) {
+          return Item.fromJson(payload);
+        }
+        throw const FormatException('Invalid item response shape.');
       } else {
         throw Exception('Failed to load items');
       }
@@ -90,14 +105,52 @@ class ItemService {
 
       if (status == 200) {
         final body = response.data;
-        if (body is List) {
-          return body.map((item) => MatchScoreItem.fromJson(item)).toList();
+        List<dynamic>? resultList;
+
+        // Support new format (with 'flat' key) and old formats
+        if (body is Map && body['flat'] is List) {
+          // New format: { "flat": [...], "grouped": [...] }
+          resultList = body['flat'] as List;
+        } else if (body is List) {
+          // Old format: direct list
+          resultList = body;
+        } else if (body is Map && body['data'] is List) {
+          // Alternative format: nested in 'data' key
+          resultList = body['data'] as List;
         }
-        if (body is Map && body['data'] is List) {
-          final list = body['data'] as List;
-          return list.map((item) => MatchScoreItem.fromJson(item)).toList();
-        }
-        return <MatchScoreItem>[];
+
+        if (resultList == null) return <MatchScoreItem>[];
+
+        // Parse all items first (like recommendations_screen does)
+        // This ensures we don't lose valid items due to structure differences
+        final parsedItems = resultList
+            .map((item) {
+              try {
+                return MatchScoreItem.fromJson(
+                  item is Map<String, dynamic>
+                      ? item
+                      : Map<String, dynamic>.from(item as Map),
+                );
+              } catch (e) {
+                // Log parsing errors but don't fail completely
+                print('Failed to parse recommendation item: $e');
+                return null;
+              }
+            })
+            .whereType<MatchScoreItem>()
+            .toList();
+
+        // Filter to include only FOUND_UNCLAIMED and CLAIM_PENDING items
+        // (CLAIM_APPROVED and COLLECTED items should not appear in recommendations)
+        return parsedItems.where((match) {
+          // Keep items that are null (will be filtered out by whereType above)
+          if (match.item == null) return false;
+
+          // Filter by status - only show unclaimed or pending items
+          final status = match.item!.status;
+          return status == ItemStatus.foundUnclaimed ||
+              status == ItemStatus.claimPending;
+        }).toList();
       }
 
       if (status == 204 || status == 404) {
@@ -132,7 +185,8 @@ class ItemService {
       }
       if (type != null) params['type'] = type.name;
       if (category != null) {
-        final id = categoryIdFromEnum(category);
+        // Use async version to ensure accurate category ID from API
+        final id = await categoryIdFromEnumAsync(category);
         if (id != null) params['category'] = id;
       }
       if (dateFrom != null) {
@@ -174,32 +228,60 @@ class ItemService {
   Future<Item> claimFoundItem({
     required int id,
     required String message,
-    String? contactName,
-    String? contactInfo,
+    required String contactName,
+    required String email,
+    required String phoneNumber,
+    File? imageFile,
   }) async {
     try {
-      final payload = <String, dynamic>{'message': message};
-      if (contactName != null && contactName.trim().isNotEmpty) {
-        payload['contactName'] = contactName.trim();
-      }
-      if (contactInfo != null && contactInfo.trim().isNotEmpty) {
-        payload['contactInfo'] = contactInfo.trim();
-      }
+      // If image is provided, use multipart form data
+      if (imageFile != null) {
+        final formData = FormData.fromMap({
+          'message': message,
+          'contactName': contactName.trim(),
+          'email': email.trim(),
+          'phoneNumber': phoneNumber.trim(),
+          'image': await MultipartFile.fromFile(
+            imageFile.path,
+            filename: imageFile.path.split('/').last,
+          ),
+        });
 
-      final response = await ApiClient.client.post(
-        '/api/items/$id/claim',
-        data: payload,
-      );
-      if (response.statusCode == 200) {
-        final data = response.data;
-        // Handle response structure: {item: {...}, hasMultipleClaims: false}
-        if (data is Map && data['item'] != null) {
-          return Item.fromJson(data['item']);
+        final response = await ApiClient.client.post(
+          '/api/items/$id/claim',
+          data: formData,
+        );
+        if (response.statusCode == 200) {
+          final itemPayload = _extractItemPayload(response.data);
+          if (itemPayload != null) {
+            return Item.fromJson(itemPayload);
+          }
+          throw const FormatException('Invalid claim response payload.');
+        } else {
+          throw Exception('Failed to submit claim');
         }
-        // Fallback for backward compatibility if response is direct item object
-        return Item.fromJson(data);
       } else {
-        throw Exception('Failed to submit claim');
+        // No image, use regular JSON payload
+        final payload = <String, dynamic>{
+          'message': message,
+          'contactName': contactName.trim(),
+          'email': email.trim(),
+          'phoneNumber': phoneNumber.trim(),
+        };
+
+        final response = await ApiClient.client.post(
+          '/api/items/$id/claim',
+          data: payload,
+        );
+        if (response.statusCode == 200) {
+          final itemPayload = _extractItemPayload(response.data);
+          if (itemPayload != null) {
+            return Item.fromJson(itemPayload);
+          }
+          throw const FormatException('Invalid claim response payload.');
+        } else {
+          throw Exception('Failed to submit claim');
+        }
       }
     } catch (e) {
       if (e is DioException) {
@@ -237,5 +319,28 @@ class ItemService {
       }
       print('AI feedback error: $e');
     }
+  }
+
+  Map<String, dynamic>? _extractItemPayload(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      if (raw['item'] is Map) {
+        return Map<String, dynamic>.from(raw['item'] as Map);
+      }
+      if (raw['data'] is Map) {
+        return Map<String, dynamic>.from(raw['data'] as Map);
+      }
+      if (raw.containsKey('id')) {
+        return raw;
+      }
+    } else if (raw is Map) {
+      if (raw['item'] is Map) {
+        return Map<String, dynamic>.from(raw['item'] as Map);
+      }
+      if (raw['data'] is Map) {
+        return Map<String, dynamic>.from(raw['data'] as Map);
+      }
+      return Map<String, dynamic>.from(raw);
+    }
+    return null;
   }
 }

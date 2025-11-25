@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
 
-class HowToClaimScreen extends StatelessWidget {
+class HowToClaimScreen extends StatefulWidget {
   const HowToClaimScreen({super.key});
 
+  @override
+  State<HowToClaimScreen> createState() => _HowToClaimScreenState();
+}
+
+class _HowToClaimScreenState extends State<HowToClaimScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,211 +64,221 @@ class HowToClaimScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Info Tip - Matching Post Item Style
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 1, 0, 0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.goldenAccent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.goldenAccent.withOpacity(0.3),
-                    width: 1,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.delayed(const Duration(milliseconds: 500));
+        },
+        color: AppTheme.primaryBlue,
+        backgroundColor: Colors.white,
+        strokeWidth: 3.0,
+        displacement: 40.0,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Info Tip - Matching Post Item Style
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 1, 0, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.goldenAccent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.goldenAccent.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        color: AppTheme.goldenAccent,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'How to Claim or Retrieve an Item',
+                              style: TextStyle(
+                                color: AppTheme.darkText,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Follow these simple steps to successfully claim your lost item at the Guidance Office',
+                              style: TextStyle(
+                                color: AppTheme.darkText.withOpacity(0.8),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              const SizedBox(height: 24),
+
+              // Steps Section
+              _buildSection(
+                title: 'Claim Process',
+                child: Column(
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: AppTheme.goldenAccent,
-                      size: 22,
+                    _buildStep(
+                      number: 1,
+                      title: 'Report Your Item',
+                      description:
+                          'Post your lost or found item through the app with accurate details and description',
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 16),
+                    _buildStep(
+                      number: 2,
+                      title: 'Wait for Verification',
+                      description:
+                          'The admin will review and confirm your post. You\'ll receive a notification once verified or matched',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStep(
+                      number: 3,
+                      title: 'Visit Claim Location',
+                      description:
+                          'Go to the Guidance Office during operating hours to claim your item',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildStep(
+                      number: 4,
+                      title: 'Verify Ownership',
+                      description:
+                          'Present valid proof such as school ID, photos, or detailed description to confirm you\'re the owner',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Claim Location Section
+              _buildSection(
+                title: 'Claim Location Details',
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.primaryBlue.withOpacity(0.2),
+                      width: 1,
+                    ),
+                    boxShadow: AppTheme.elevatedShadow,
+                  ),
+                  child: Column(
+                    children: [
+                      _buildInfoRow(
+                        icon: Icons.location_on,
+                        label: 'Claim Area',
+                        value: 'Guidance Office',
+                        iconColor: AppTheme.goldenAccent,
+                      ),
+                      const Divider(height: 24),
+                      _buildInfoRow(
+                        icon: Icons.access_time,
+                        label: 'Available Hours',
+                        value: '8:00 AM - 4:00 PM (Monday to Friday)',
+                        iconColor: AppTheme.goldenAccent,
+                      ),
+                      const Divider(height: 24),
+                      _buildInfoRow(
+                        icon: Icons.person,
+                        label: 'Assisted by',
+                        value: 'Guidance Officer / Admin Staff',
+                        iconColor: AppTheme.goldenAccent,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Rules & Reminders Section
+              _buildSection(
+                title: 'Important Rules & Reminders',
+                child: Column(
+                  children: [
+                    // Warning Header
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.errorRed.withOpacity(0.03),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.errorRed.withOpacity(0.1),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
                         children: [
-                          Text(
-                            'How to Claim or Retrieve an Item',
-                            style: TextStyle(
-                              color: AppTheme.darkText,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.errorRed.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.warning_amber_rounded,
+                              color: AppTheme.errorRed.withOpacity(0.6),
+                              size: 24,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Follow these simple steps to successfully claim your lost item at the Guidance Office',
-                            style: TextStyle(
-                              color: AppTheme.darkText.withOpacity(0.8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              height: 1.4,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Please read and follow these important guidelines',
+                              style: TextStyle(
+                                color: AppTheme.errorRed.withOpacity(0.7),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Steps Section
-            _buildSection(
-              title: 'Claim Process',
-              child: Column(
-                children: [
-                  _buildStep(
-                    number: 1,
-                    title: 'Report Your Item',
-                    description:
-                        'Post your lost or found item through the app with accurate details and description',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStep(
-                    number: 2,
-                    title: 'Wait for Verification',
-                    description:
-                        'The admin will review and confirm your post. You\'ll receive a notification once verified or matched',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStep(
-                    number: 3,
-                    title: 'Visit Claim Location',
-                    description:
-                        'Go to the Guidance Office during operating hours to claim your item',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildStep(
-                    number: 4,
-                    title: 'Verify Ownership',
-                    description:
-                        'Present valid proof such as school ID, photos, or detailed description to confirm you\'re the owner',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Claim Location Section
-            _buildSection(
-              title: 'Claim Location Details',
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.primaryBlue.withOpacity(0.2),
-                    width: 1,
-                  ),
-                  boxShadow: AppTheme.elevatedShadow,
-                ),
-                child: Column(
-                  children: [
-                    _buildInfoRow(
-                      icon: Icons.location_on,
-                      label: 'Claim Area',
-                      value: 'Guidance Office',
-                      iconColor: AppTheme.goldenAccent,
+                    const SizedBox(height: 16),
+                    // Rules List
+                    _buildRuleItem(
+                      icon: Icons.verified_user,
+                      text:
+                          'Only verified owners are allowed to claim items. Authentication is required',
                     ),
-                    const Divider(height: 24),
-                    _buildInfoRow(
-                      icon: Icons.access_time,
-                      label: 'Available Hours',
-                      value: '8:00 AM - 4:00 PM (Monday to Friday)',
-                      iconColor: AppTheme.goldenAccent,
+                    const SizedBox(height: 12),
+                    _buildRuleItem(
+                      icon: Icons.badge,
+                      text:
+                          'Always bring a valid school ID or identification card for verification purposes',
                     ),
-                    const Divider(height: 24),
-                    _buildInfoRow(
-                      icon: Icons.person,
-                      label: 'Assisted by',
-                      value: 'Guidance Officer / Admin Staff',
-                      iconColor: AppTheme.goldenAccent,
+                    const SizedBox(height: 12),
+                    _buildRuleItem(
+                      icon: Icons.gavel,
+                      text:
+                          'False claims or misrepresentation may result in disciplinary actions or penalties',
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // Rules & Reminders Section
-            _buildSection(
-              title: 'Important Rules & Reminders',
-              child: Column(
-                children: [
-                  // Warning Header
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.errorRed.withOpacity(0.03),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: AppTheme.errorRed.withOpacity(0.1),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.errorRed.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.warning_amber_rounded,
-                            color: AppTheme.errorRed.withOpacity(0.6),
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Please read and follow these important guidelines',
-                            style: TextStyle(
-                              color: AppTheme.errorRed.withOpacity(0.7),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Rules List
-                  _buildRuleItem(
-                    icon: Icons.verified_user,
-                    text:
-                        'Only verified owners are allowed to claim items. Authentication is required',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRuleItem(
-                    icon: Icons.badge,
-                    text:
-                        'Always bring a valid school ID or identification card for verification purposes',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRuleItem(
-                    icon: Icons.gavel,
-                    text:
-                        'False claims or misrepresentation may result in disciplinary actions or penalties',
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-          ],
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

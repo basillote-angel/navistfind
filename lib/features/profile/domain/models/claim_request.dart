@@ -1,166 +1,117 @@
-enum ClaimRequestStatus { pending, approved, rejected, withdrawn }
-
-extension ClaimRequestStatusExtension on ClaimRequestStatus {
-  static ClaimRequestStatus fromString(String value) {
-    switch (value) {
-      case 'approved':
-        return ClaimRequestStatus.approved;
-      case 'rejected':
-        return ClaimRequestStatus.rejected;
-      case 'withdrawn':
-        return ClaimRequestStatus.withdrawn;
-      case 'pending':
-      default:
-        return ClaimRequestStatus.pending;
-    }
-  }
-
-  String get label {
-    switch (this) {
-      case ClaimRequestStatus.pending:
-        return 'Pending Review';
-      case ClaimRequestStatus.approved:
-        return 'Approved';
-      case ClaimRequestStatus.rejected:
-        return 'Rejected';
-      case ClaimRequestStatus.withdrawn:
-        return 'Cancelled';
-    }
-  }
-}
-
-class ClaimRequestItem {
-  const ClaimRequestItem({
-    required this.id,
-    required this.title,
-    required this.status,
-    required this.location,
-    required this.categoryName,
-    required this.imageUrl,
-    required this.collectionDeadline,
-  });
-
-  final int id;
-  final String title;
-  final String? status;
-  final String? location;
-  final String? categoryName;
-  final String? imageUrl;
-  final DateTime? collectionDeadline;
-
-  factory ClaimRequestItem.fromJson(Map<String, dynamic> json) {
-    return ClaimRequestItem(
-      id: json['id'] as int,
-      title: (json['title'] ?? '').toString(),
-      status: json['status']?.toString(),
-      location: json['location']?.toString(),
-      categoryName: json['categoryName']?.toString(),
-      imageUrl: json['imageUrl']?.toString(),
-      collectionDeadline: _parseDateTime(json['collectionDeadline']),
-    );
-  }
-}
+import 'package:navistfind/features/lost_found/item/domain/enums/claim_status.dart';
+import 'package:navistfind/features/lost_found/item/domain/models/claim_detail.dart';
 
 class ClaimRequest {
-  const ClaimRequest({
+  ClaimRequest({
     required this.id,
     required this.foundItemId,
     required this.status,
-    required this.message,
-    required this.submittedAt,
-    required this.updatedAt,
-    required this.approvedAt,
-    required this.rejectedAt,
-    required this.rejectionReason,
-    required this.isPrimaryClaim,
-    required this.foundItem,
-    required this.claimantContactName,
-    required this.claimantContactInfo,
+    this.message,
+    this.foundItemTitle,
+    this.claimantContactName,
+    this.claimantContactInfo,
+    this.adminNotes,
+    this.rejectionReason,
+    this.collectionInstructions,
+    this.collectionLocation,
+    this.collectionDeadline,
+    this.submittedAt,
+    this.updatedAt,
   });
 
   final int id;
   final int foundItemId;
-  final ClaimRequestStatus status;
+  final ClaimStatus status;
   final String? message;
-  final DateTime? submittedAt;
-  final DateTime? updatedAt;
-  final DateTime? approvedAt;
-  final DateTime? rejectedAt;
-  final String? rejectionReason;
-  final bool isPrimaryClaim;
-  final ClaimRequestItem? foundItem;
+  final String? foundItemTitle;
   final String? claimantContactName;
   final String? claimantContactInfo;
+  final String? adminNotes;
+  final String? rejectionReason;
+  final String? collectionInstructions;
+  final String? collectionLocation;
+  final DateTime? collectionDeadline;
+  final DateTime? submittedAt;
+  final DateTime? updatedAt;
 
   factory ClaimRequest.fromJson(Map<String, dynamic> json) {
+    DateTime? _parseDate(String? value) {
+      if (value == null || value.isEmpty) return null;
+      try {
+        return DateTime.parse(value).toLocal();
+      } catch (_) {
+        return null;
+      }
+    }
+
     return ClaimRequest(
-      id: json['id'] as int,
-      foundItemId: json['foundItemId'] as int,
-      status: ClaimRequestStatusExtension.fromString(
-        json['status']?.toString() ?? 'pending',
-      ),
-      message: json['message']?.toString(),
-      submittedAt: _parseDateTime(json['submittedAt']),
-      updatedAt: _parseDateTime(json['updatedAt']),
-      approvedAt: _parseDateTime(json['approvedAt']),
-      rejectedAt: _parseDateTime(json['rejectedAt']),
-      rejectionReason: json['rejectionReason']?.toString(),
-      isPrimaryClaim: json['isPrimaryClaim'] == true,
-      foundItem: json['foundItem'] is Map<String, dynamic>
-          ? ClaimRequestItem.fromJson(json['foundItem'] as Map<String, dynamic>)
-          : json['foundItem'] is Map
-          ? ClaimRequestItem.fromJson(
-              Map<String, dynamic>.from(json['foundItem'] as Map),
-            )
-          : null,
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse('${json['id']}') ?? 0,
+      foundItemId: json['found_item_id'] is int
+          ? json['found_item_id'] as int
+          : int.tryParse('${json['found_item_id']}') ??
+                json['item_id'] as int? ??
+                int.tryParse('${json['item_id']}') ??
+                0,
+      status: ClaimStatusExtension.safeValue(json['status']?.toString() ?? ''),
+      message: (json['message'] ?? json['claim_message'])?.toString(),
+      foundItemTitle:
+          (json['found_item']?['title'] ??
+                  json['foundItem']?['title'] ??
+                  json['found_item_title'] ??
+                  json['foundItemTitle'])
+              ?.toString(),
       claimantContactName:
-          (json['claimantContactName'] ??
-                  json['claimant_contact_name'] ??
-                  json['contactName'] ??
-                  json['contact_name'])
+          (json['claimant_contact_name'] ??
+                  json['claimant_name'] ??
+                  json['claimant']?['name'])
               ?.toString(),
       claimantContactInfo:
-          (json['claimantContactInfo'] ??
-                  json['claimant_contact_info'] ??
-                  json['contactInfo'] ??
-                  json['contact_info'])
+          (json['claimant_contact_info'] ??
+                  json['contact_info'] ??
+                  json['claimant']?['contactInfo'])
               ?.toString(),
+      adminNotes: (json['admin_notes'] ?? json['adminNotes'])?.toString(),
+      rejectionReason: (json['rejection_reason'] ?? json['rejectionReason'])
+          ?.toString(),
+      collectionInstructions:
+          (json['collection_instructions'] ??
+                  json['collectionInstructions'] ??
+                  json['pickup_instructions'])
+              ?.toString(),
+      collectionLocation:
+          (json['collection_location'] ??
+                  json['collectionLocation'] ??
+                  json['pickup_location'])
+              ?.toString(),
+      collectionDeadline: _parseDate(
+        json['collection_deadline']?.toString() ??
+            json['collectionDeadline']?.toString(),
+      ),
+      submittedAt: _parseDate(
+        json['submitted_at']?.toString() ?? json['created_at']?.toString(),
+      ),
+      updatedAt: _parseDate(json['updated_at']?.toString()),
     );
   }
 
-  ClaimRequest copyWith({
-    ClaimRequestStatus? status,
-    String? message,
-    String? claimantContactName,
-    String? claimantContactInfo,
-  }) {
+  factory ClaimRequest.fromDetail(ClaimDetail detail) {
     return ClaimRequest(
-      id: id,
-      foundItemId: foundItemId,
-      status: status ?? this.status,
-      message: message ?? this.message,
-      submittedAt: submittedAt,
-      updatedAt: updatedAt,
-      approvedAt: approvedAt,
-      rejectedAt: rejectedAt,
-      rejectionReason: rejectionReason,
-      isPrimaryClaim: isPrimaryClaim,
-      foundItem: foundItem,
-      claimantContactName: claimantContactName ?? this.claimantContactName,
-      claimantContactInfo: claimantContactInfo ?? this.claimantContactInfo,
+      id: detail.id,
+      foundItemId: detail.itemId,
+      status: detail.status,
+      message: detail.message,
+      foundItemTitle: detail.foundItemTitle,
+      claimantContactName: detail.claimantName,
+      claimantContactInfo: detail.claimantContact,
+      adminNotes: detail.adminNotes,
+      rejectionReason: detail.rejectionReason,
+      collectionInstructions: detail.collectionInstructions,
+      collectionLocation: detail.collectionLocation,
+      collectionDeadline: detail.collectionDeadline,
+      submittedAt: detail.submittedAt,
+      updatedAt: detail.updatedAt,
     );
   }
-}
-
-DateTime? _parseDateTime(dynamic value) {
-  if (value == null) {
-    return null;
-  }
-  if (value is String && value.isEmpty) {
-    return null;
-  }
-  if (value is String) {
-    return DateTime.tryParse(value);
-  }
-  return null;
 }

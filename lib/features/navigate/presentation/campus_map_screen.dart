@@ -27,94 +27,11 @@ class _CampusMapScreenState extends State<CampusMapScreen> {
 
   static const List<Map<String, dynamic>> buildings = [
     {
-      "name": "Library",
-      "category": "Academic",
-      "description": "Main campus library with study areas and archives.",
-      "latLng": LatLng(7.359008, 125.706665),
-      "rooms": ["Reading Hall", "Archives", "Research Room"],
-    },
-    {
-      "name": "Admin Building",
-      "category": "Administrative",
-      "description": "Handles registration, faculty, and IT services.",
-      "latLng": LatLng(7.359074, 125.706070),
-      "rooms": [
-        "Room 101 – Registrar’s Office",
-        "Room 102 – Faculty Room",
-        "Room 103 – IT Support",
-      ],
-    },
-    {
-      "name": "Science Building",
-      "category": "Academic",
-      "description": "Science classrooms and laboratories.",
-      "latLng": LatLng(7.359658, 125.706482),
-      "rooms": [
-        "Room 201 – Physics Lab",
-        "Room 202 – Chemistry Lab",
-        "Room 203 – Biology Lab",
-      ],
-    },
-    {
-      "name": "Technology Building",
-      "category": "Academic",
-      "description": "Computer labs and electronics workshops.",
-      "latLng": LatLng(7.359392, 125.706595),
-      "rooms": [
-        "Room 301 – Computer Lab A",
-        "Room 302 – Computer Lab B",
-        "Room 303 – Robotics Room",
-      ],
-    },
-    {
-      "name": "Gymnasium",
-      "category": "Recreational",
-      "description": "Indoor gym for sports and school events.",
-      "latLng": LatLng(7.358104, 125.706301),
-      "rooms": ["Main Court", "Locker Room", "Equipment Storage"],
-    },
-    {
-      "name": "Student Center",
+      "name": "Guidance Office",
       "category": "Student Services",
-      "description": "Lounge, guidance, and student organization offices.",
-      "latLng": LatLng(7.358355, 125.705738),
-      "rooms": [
-        "Room 401 – Guidance Office",
-        "Room 402 – Student Affairs",
-        "Room 403 – Lounge",
-      ],
-    },
-    {
-      "name": "Cafeteria",
-      "category": "Service",
-      "description": "Dining area for students and faculty.",
+      "description": "Student guidance and counseling services.",
       "latLng": LatLng(7.358470, 125.706246),
-      "rooms": ["Main Dining Area", "Kitchen", "Storage Room"],
-    },
-    {
-      "name": "Senior High Building",
-      "category": "Academic",
-      "description": "Classrooms for senior high school students.",
-      "latLng": LatLng(7.359820, 125.706890),
-      "rooms": [
-        "Room 501 – Grade 11 STEM",
-        "Room 502 – Grade 12 HUMSS",
-        "Room 503 – Faculty Lounge",
-      ],
-    },
-    {
-      "name": "Clinic",
-      "category": "Health Services",
-      "description": "Provides basic medical services and first aid.",
-      "latLng": LatLng(7.358789, 125.705915),
-      "rooms": ["Consultation Room", "First Aid Room", "Pharmacy"],
-    },
-    {
-      "name": "Covered Court",
-      "category": "Recreational",
-      "description": "Open-air court for events and PE classes.",
-      "latLng": LatLng(7.359130, 125.705560),
-      "rooms": ["Court Area", "Announcers Booth", "Storage"],
+      "rooms": ["Counseling Room", "Office", "Waiting Area"],
     },
   ];
 

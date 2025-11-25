@@ -3,7 +3,6 @@ import 'package:dio/dio.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/category_id_mapping.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
-
 import 'package:navistfind/core/utils/date_formatter.dart';
 
 class PostItemService {
@@ -31,7 +30,9 @@ class PostItemService {
       };
 
       final response = await ApiClient.client.post('/api/items', data: body);
-      if (response.statusCode != 201) {
+      if (response.statusCode == 201) {
+        _registerCategoryFromResponse(category, response.data);
+      } else {
         try {
           final data = response.data;
           if (data is Map && data['message'] is String) {
@@ -88,7 +89,9 @@ class PostItemService {
         '/api/items/$itemId',
         data: body,
       );
-      if (response.statusCode != 200) {
+      if (response.statusCode == 200) {
+        _registerCategoryFromResponse(category, response.data);
+      } else {
         try {
           final data = response.data;
           if (data is Map && data['message'] is String) {
@@ -112,5 +115,42 @@ class PostItemService {
       print('Update Error: $e');
       return 'Unknown error: $e';
     }
+  }
+
+  void _registerCategoryFromResponse(
+    ItemCategory selectedCategory,
+    dynamic responseData,
+  ) {
+    Map<String, dynamic>? payload;
+    if (responseData is Map<String, dynamic>) {
+      if (responseData['data'] is Map<String, dynamic>) {
+        payload = responseData['data'] as Map<String, dynamic>;
+      } else {
+        payload = responseData;
+      }
+    } else if (responseData is Map) {
+      payload = Map<String, dynamic>.from(responseData);
+    }
+    if (payload == null) return;
+
+    Map<String, dynamic>? categoryPayload;
+    if (payload['category'] is Map) {
+      categoryPayload = Map<String, dynamic>.from(payload['category'] as Map);
+    }
+
+    final id = categoryPayload?['id'] is int
+        ? categoryPayload!['id'] as int
+        : int.tryParse('${categoryPayload?['id']}');
+    final name = (categoryPayload?['name'] ?? payload['category_name'])
+        ?.toString();
+    final resolvedCategory =
+        ItemCategoryExtension.tryParse(name) ?? selectedCategory;
+    final effectiveName = name ?? resolvedCategory.label;
+
+    registerCategoryMapping(
+      category: resolvedCategory,
+      id: id,
+      name: effectiveName,
+    );
   }
 }

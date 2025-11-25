@@ -1,54 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
+import 'package:navistfind/features/lost_found/item/domain/enums/item_status.dart';
 
 IconData getStatusIconFromString(String status) {
-  switch (status.toLowerCase()) {
-    case 'returned':
-    case 'claimed':
-      return Icons.check_circle;
-    case 'matched':
-      return Icons.search;
-    case 'open':
-    case 'unclaimed':
-      return Icons.search_off;
-    case 'closed':
-      return Icons.close;
-    default:
-      return Icons.inventory_2;
+  final ItemStatus parsed = ItemStatusExtension.safeValue(status);
+  switch (parsed) {
+    case ItemStatus.lostReported:
+      return Icons.report_problem_outlined;
+    case ItemStatus.resolved:
+      return Icons.verified_outlined;
+    case ItemStatus.foundUnclaimed:
+      return Icons.inventory_2_outlined;
+    case ItemStatus.claimPending:
+      return Icons.hourglass_top_rounded;
+    case ItemStatus.claimApproved:
+      return Icons.assignment_turned_in_outlined;
+    case ItemStatus.collected:
+      return Icons.inventory_outlined;
   }
 }
 
 Color getStatusColorFromString(String status) {
-  switch (status.toLowerCase()) {
-    case 'returned':
-    case 'claimed':
+  final ItemStatus parsed = ItemStatusExtension.safeValue(status);
+  switch (parsed) {
+    case ItemStatus.lostReported:
+      return AppTheme.warningOrange;
+    case ItemStatus.resolved:
       return AppTheme.successGreen;
-    case 'matched':
+    case ItemStatus.foundUnclaimed:
       return AppTheme.primaryBlue;
-    case 'open':
-    case 'unclaimed':
-      return AppTheme.errorRed;
-    case 'closed':
+    case ItemStatus.claimPending:
+      return AppTheme.warningOrange;
+    case ItemStatus.claimApproved:
+      return AppTheme.successGreen;
+    case ItemStatus.collected:
       return AppTheme.textGray;
-    default:
-      return AppTheme.primaryBlue;
   }
 }
 
 String getUserFriendlyStatusLabelFromString(String status) {
-  switch (status.toLowerCase()) {
-    case 'returned':
-    case 'claimed':
-      return 'RETURNED';
-    case 'matched':
-      return 'POTENTIAL MATCHES';
-    case 'open':
-      return 'ACTIVE SEARCHES';
-    case 'unclaimed':
-      return 'NOT CLAIMED';
-    case 'closed':
-      return 'EXPIRED';
-    default:
-      return status.toUpperCase();
-  }
+  final ItemStatus parsed = ItemStatusExtension.safeValue(status);
+  return parsed.displayLabel;
 }

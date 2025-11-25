@@ -47,36 +47,41 @@ class StatusChip extends StatelessWidget {
   }
 
   _StatusVisuals _computeVisuals(ItemStatus status, ItemType? itemType) {
-    final bool isLost = itemType == ItemType.lost;
     switch (status) {
-      case ItemStatus.returned:
-        return const _StatusVisuals(
-          label: 'RETURNED',
-          icon: Icons.check_circle,
+      case ItemStatus.lostReported:
+        return _StatusVisuals(
+          label: status.displayLabel.toUpperCase(),
+          icon: Icons.search_rounded,
+          color: AppTheme.warningOrange,
+        );
+      case ItemStatus.resolved:
+        return _StatusVisuals(
+          label: status.displayLabel.toUpperCase(),
+          icon: Icons.verified_outlined,
           color: AppTheme.successGreen,
         );
-      case ItemStatus.matched:
-        return const _StatusVisuals(
-          label: 'POTENTIAL MATCH',
-          icon: Icons.search,
+      case ItemStatus.foundUnclaimed:
+        return _StatusVisuals(
+          label: status.displayLabel.toUpperCase(),
+          icon: Icons.inventory_2_outlined,
           color: AppTheme.primaryBlue,
         );
-      case ItemStatus.open:
+      case ItemStatus.claimPending:
         return _StatusVisuals(
-          label: isLost ? 'SEARCHING' : 'AVAILABLE',
-          icon: isLost ? Icons.search : Icons.notifications_active,
-          color: isLost ? AppTheme.warningOrange : AppTheme.primaryBlue,
+          label: status.displayLabel.toUpperCase(),
+          icon: Icons.hourglass_top_rounded,
+          color: AppTheme.warningOrange,
         );
-      case ItemStatus.unclaimed:
-        return const _StatusVisuals(
-          label: 'NOT CLAIMED',
-          icon: Icons.cancel_outlined,
-          color: AppTheme.errorRed,
-        );
-      case ItemStatus.closed:
+      case ItemStatus.claimApproved:
         return _StatusVisuals(
-          label: 'EXPIRED',
-          icon: Icons.access_time,
+          label: status.displayLabel.toUpperCase(),
+          icon: Icons.assignment_turned_in_outlined,
+          color: AppTheme.successGreen,
+        );
+      case ItemStatus.collected:
+        return _StatusVisuals(
+          label: status.displayLabel.toUpperCase(),
+          icon: Icons.inventory_outlined,
           color: AppTheme.textGray,
         );
     }

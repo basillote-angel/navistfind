@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navistfind/features/lost_found/post-item/presentation/post_item_screen.dart';
-import 'package:navistfind/features/lost_found/item/presentation/lost_and_found.dart';
 import 'package:navistfind/features/navigate/presentation/campus_map_screen.dart';
 import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
@@ -15,16 +14,11 @@ import 'package:navistfind/widgets/section_header.dart';
 import 'package:navistfind/widgets/loading_placeholders.dart';
 import 'package:navistfind/features/notifications/presentation/notification_screen.dart';
 import 'package:navistfind/features/notifications/application/notifications_provider.dart';
+import 'package:navistfind/features/profile/application/profile_provider.dart';
+import 'package:navistfind/core/navigation/navigation_bar_app.dart';
 
 class HomePage extends ConsumerStatefulWidget {
-  const HomePage({
-    super.key,
-    this.username = 'Angel',
-    this.unreadNotifications = 3,
-  });
-
-  final String username;
-  final int unreadNotifications;
+  const HomePage({super.key});
 
   @override
   ConsumerState<HomePage> createState() => _HomePageState();
@@ -63,21 +57,33 @@ class _HomePageState extends ConsumerState<HomePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTopBar(),
-              const SizedBox(height: 16),
-              if (showGreeting) _buildGreetingBanner(),
-              const SizedBox(height: 20),
-              _buildQuickActionsGrid(),
-              const SizedBox(height: 24),
-              _buildRecommendationsHeader(context),
-              const SizedBox(height: 12),
-              _buildSmartRecommendations(context, recommendedAsync),
-            ],
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(recommendedItemsProvider);
+            ref.invalidate(profileInfoProvider);
+            ref.read(notificationsProvider.notifier).load();
+          },
+          color: AppTheme.primaryBlue,
+          backgroundColor: Colors.white,
+          strokeWidth: 3.0,
+          displacement: 40.0,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTopBar(),
+                const SizedBox(height: 16),
+                if (showGreeting) _buildGreetingBanner(),
+                const SizedBox(height: 20),
+                _buildQuickActionsGrid(),
+                const SizedBox(height: 24),
+                _buildRecommendationsHeader(context),
+                const SizedBox(height: 12),
+                _buildSmartRecommendations(context, recommendedAsync),
+              ],
+            ),
           ),
         ),
       ),
@@ -161,75 +167,152 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildGreetingBanner() {
+    final profileAsync = ref.watch(profileInfoProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool compact = constraints.maxWidth < 360;
         final double titleSize = compact ? 18 : 20;
         final double paddingV = compact ? 14 : 18;
-        return Stack(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(
-                AppTheme.spacingL,
-                paddingV,
-                AppTheme.spacingL,
-                paddingV,
+        return profileAsync.when(
+          loading: () => Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.spacingL,
+              paddingV,
+              AppTheme.spacingL,
+              paddingV,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              gradient: AppTheme.cardGradient,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${getGreetingForNow()}! 👋',
+                  style: TextStyle(
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.primaryBlue,
+                  ),
+                  softWrap: true,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Let's find what you lost today",
+                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.textGray),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormatter.formatFullDate(DateTime.now()),
+                  style: AppTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          error: (_, __) => Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(
+              AppTheme.spacingL,
+              paddingV,
+              AppTheme.spacingL,
+              paddingV,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+              gradient: AppTheme.cardGradient,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${getGreetingForNow()}! 👋',
+                  style: TextStyle(
+                    fontSize: titleSize,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.primaryBlue,
+                  ),
+                  softWrap: true,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Let's find what you lost today",
+                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.textGray),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormatter.formatFullDate(DateTime.now()),
+                  style: AppTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          data: (profile) => Stack(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.fromLTRB(
+                  AppTheme.spacingL,
+                  paddingV,
+                  AppTheme.spacingL,
+                  paddingV,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                  gradient: AppTheme.cardGradient,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${getGreetingForNow()}, ${profile.name}! 👋',
+                      style: TextStyle(
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primaryBlue,
+                      ),
+                      softWrap: true,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Let's find what you lost today",
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppTheme.textGray,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormatter.formatFullDate(DateTime.now()),
+                      style: AppTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                gradient: AppTheme.cardGradient,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${getGreetingForNow()}, ${widget.username}! 👋',
-                    style: TextStyle(
-                      fontSize: titleSize,
-                      fontWeight: FontWeight.w800,
+              Positioned(
+                right: 8,
+                top: 8,
+                child: InkWell(
+                  onTap: () => setState(() => showGreeting = false),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
+                  child: Container(
+                    height: 28,
+                    width: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: AppTheme.elevatedShadow,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 18,
                       color: AppTheme.primaryBlue,
                     ),
-                    softWrap: true,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    "Let's find what you lost today",
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.textGray,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormatter.formatFullDate(DateTime.now()),
-                    style: AppTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: InkWell(
-                onTap: () => setState(() => showGreeting = false),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-                child: Container(
-                  height: 28,
-                  width: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: AppTheme.elevatedShadow,
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    size: 18,
-                    color: AppTheme.primaryBlue,
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -250,11 +333,14 @@ class _HomePageState extends ConsumerState<HomePage> {
         icon: Icons.inventory_2_outlined,
         label: 'Found Items',
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const LostAndFoundScreen(initialTabIndex: 0),
-            ),
-          );
+          // Navigate to Lost & Found page via bottom navigation bar
+          final navigationBarState = context
+              .findAncestorStateOfType<NavigationBarAppState>();
+          if (navigationBarState != null) {
+            navigationBarState.setState(() {
+              navigationBarState.currentIndex = 1; // Lost & Found tab index
+            });
+          }
         },
       ),
       _QuickAction(
@@ -343,8 +429,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           children: [
             const Expanded(
               child: SectionHeader(
-                title: 'Smart Recommendations',
-                icon: Icons.auto_awesome,
+                title: 'Recommendations for You',
+                icon: null,
               ),
             ),
             const SizedBox(width: 8),
@@ -372,7 +458,43 @@ class _HomePageState extends ConsumerState<HomePage> {
   ) {
     return recommendedAsync.when(
       loading: () => const LoadingHorizontalCardsPlaceholder(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (error, stackTrace) {
+        // Log error for debugging (can be removed in production)
+        debugPrint('Recommendations error: $error');
+        // Show empty state instead of hiding completely
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            vertical: AppTheme.spacingXXXL,
+            horizontal: AppTheme.spacingXXL,
+          ),
+          decoration: BoxDecoration(
+            color: AppTheme.lightPanel,
+            borderRadius: BorderRadius.circular(AppTheme.radiusXXLarge),
+          ),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: AppTheme.textGray,
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              Text(
+                'Unable to load recommendations',
+                style: AppTheme.bodyMedium.copyWith(
+                  color: AppTheme.textGray,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
       data: (matches) {
         final sorted = [...matches]..sort((a, b) => b.score.compareTo(a.score));
         final items = sorted.map((m) => m.item).whereType<Item>().toList();

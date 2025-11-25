@@ -1,6 +1,7 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:navistfind/core/constants.dart';
 import 'package:navistfind/core/secure_storage.dart';
-import 'package:dio/dio.dart';
 
 class ApiClient {
   static Dio _createClient(String baseUrl) {
@@ -19,33 +20,37 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          print(
-            '[API Client] Request: ${options.method} ${options.baseUrl}${options.path}',
-          );
-          print('[API Client] Headers: ${options.headers}');
-          print('[API Client] Data: ${options.data}');
+          if (kDebugMode) {
+            debugPrint(
+              '[API] ${options.method} ${options.baseUrl}${options.path}',
+            );
+          }
 
           final token = await SecureStorage.getToken();
-          print('[API Client] Token: ${token != null ? "exists" : "null"}');
 
-          if (token != null) {
+          if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+
+          // If FormData is being sent, Dio will automatically set Content-Type to multipart/form-data
+          // Remove the default application/json header to let Dio handle it
+          if (options.data is FormData) {
+            options.headers.remove('Content-Type');
+          }
+
           handler.next(options); // Continue with the request
         },
         onResponse: (response, handler) {
-          print(
-            '[API Client] Response: ${response.statusCode} ${response.statusMessage}',
-          );
-          print('[API Client] Response data: ${response.data}');
+          if (kDebugMode) {
+            debugPrint(
+              '[API] ${response.statusCode} ${response.requestOptions.path}',
+            );
+          }
           handler.next(response);
         },
         onError: (error, handler) {
-          print('[API Client] Error: ${error.type}');
-          print('[API Client] Error message: ${error.message}');
-          if (error.response != null) {
-            print('[API Client] Error response: ${error.response?.statusCode}');
-            print('[API Client] Error response data: ${error.response?.data}');
+          if (kDebugMode) {
+            debugPrint('[API][Error] ${error.type} ${error.message}');
           }
           handler.next(error);
         },

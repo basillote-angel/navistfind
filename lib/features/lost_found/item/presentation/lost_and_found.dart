@@ -2,6 +2,7 @@ import 'package:navistfind/features/lost_found/item/application/item_provider.da
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
 import 'package:navistfind/features/lost_found/item/domain/enums/item_status.dart';
 import 'package:navistfind/features/lost_found/item/presentation/item_details_screen.dart';
+import 'package:navistfind/features/lost_found/item/presentation/item_helpers.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/lost_found/post-item/domain/enums/category.dart';
 import 'package:navistfind/features/profile/application/profile_provider.dart';
@@ -32,134 +33,100 @@ class LostAndFoundScreen extends ConsumerStatefulWidget {
   ConsumerState<LostAndFoundScreen> createState() => _LostAndFoundScreenState();
 }
 
-class _FoundTab extends ConsumerWidget {
+class _FoundTab extends ConsumerStatefulWidget {
   final String searchQuery;
   final ItemStatus? filterStatus;
-  final AsyncValue<List<MatchScoreItem>> recommendedAsync;
   final Set<String> expandedCategories;
   final Function(String) onToggleCategory;
   const _FoundTab({
     required this.searchQuery,
     required this.filterStatus,
-    required this.recommendedAsync,
     required this.expandedCategories,
     required this.onToggleCategory,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final itemsAsyncValue = ref.watch(itemsByTypeProvider(ItemType.found));
-    return itemsAsyncValue.when(
-      data: (items) {
-        final filtered = items.where((item) {
-          final q = searchQuery.toLowerCase();
-          final matchesSearch =
-              q.isEmpty ||
-              item.title.toLowerCase().contains(q) ||
-              item.description.toLowerCase().contains(q) ||
-              item.location.toLowerCase().contains(q);
-          final matchesFilter =
-              filterStatus == null || item.status == filterStatus;
-          return matchesSearch && matchesFilter;
-        }).toList();
-        return _LostAndFoundScreenState()._buildNetflixList(
-          filtered,
-          recommendedAsync,
-          expandedCategories,
-          onToggleCategory,
-        );
-      },
-      loading: () => _ShimmerLoadingPlaceholder(),
-      error: (e, _) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 80, color: Colors.red),
-            const SizedBox(height: 12),
-            Text(
-              'Failed to load items',
-              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              e.toString(),
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                final _ = ref.refresh(itemsByTypeProvider(ItemType.found));
-              },
-              child: const Text('Try Again'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  ConsumerState<_FoundTab> createState() => _FoundTabState();
 }
 
-class _LostTab extends ConsumerWidget {
-  final String searchQuery;
-  final ItemStatus? filterStatus;
-  final AsyncValue<List<MatchScoreItem>> recommendedAsync;
-  final Set<String> expandedCategories;
-  final Function(String) onToggleCategory;
-  const _LostTab({
-    required this.searchQuery,
-    required this.filterStatus,
-    required this.recommendedAsync,
-    required this.expandedCategories,
-    required this.onToggleCategory,
-  });
-
+class _FoundTabState extends ConsumerState<_FoundTab> {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final itemsAsyncValue = ref.watch(itemsByTypeProvider(ItemType.lost));
-    return itemsAsyncValue.when(
-      data: (items) {
-        final filtered = items.where((item) {
-          final q = searchQuery.toLowerCase();
-          final matchesSearch =
-              q.isEmpty ||
-              item.title.toLowerCase().contains(q) ||
-              item.description.toLowerCase().contains(q) ||
-              item.location.toLowerCase().contains(q);
-          final matchesFilter =
-              filterStatus == null || item.status == filterStatus;
-          return matchesSearch && matchesFilter;
-        }).toList();
-        return _LostAndFoundScreenState()._buildNetflixList(
-          filtered,
-          recommendedAsync,
-          expandedCategories,
-          onToggleCategory,
-        );
+  Widget build(BuildContext context) {
+    final itemsAsyncValue = ref.watch(itemsByTypeProvider(ItemType.found));
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(itemsByTypeProvider(ItemType.found));
       },
-      loading: () => _ShimmerLoadingPlaceholder(),
-      error: (e, _) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      color: AppTheme.primaryBlue,
+      backgroundColor: Colors.white,
+      strokeWidth: 3.0,
+      displacement: 40.0,
+      child: itemsAsyncValue.when(
+        data: (items) {
+          final ItemStatus? effectiveFilter =
+              (widget.filterStatus != null &&
+                  includeInFoundList(widget.filterStatus!))
+              ? widget.filterStatus
+              : null;
+          final filtered = items.where((item) {
+            if (!includeInFoundList(item.status)) return false;
+            final q = widget.searchQuery.toLowerCase();
+            final matchesSearch =
+                q.isEmpty ||
+                item.title.toLowerCase().contains(q) ||
+                item.description.toLowerCase().contains(q) ||
+                item.location.toLowerCase().contains(q);
+            final matchesFilter =
+                effectiveFilter == null || item.status == effectiveFilter;
+            return matchesSearch && matchesFilter;
+          }).toList();
+          return _LostAndFoundScreenState()._buildNetflixList(
+            filtered,
+            widget.expandedCategories,
+            widget.onToggleCategory,
+          );
+        },
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 300, child: _ShimmerLoadingPlaceholder()),
+          ],
+        ),
+        error: (e, _) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            const Icon(Icons.error_outline, size: 80, color: Colors.red),
-            const SizedBox(height: 12),
-            Text(
-              'Failed to load items',
-              style: TextStyle(fontSize: 18, color: Colors.grey[700]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              e.toString(),
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                final _ = ref.refresh(itemsByTypeProvider(ItemType.lost));
-              },
-              child: const Text('Try Again'),
+            SizedBox(
+              height: 300,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      size: 80,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Failed to load items',
+                      style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      e.toString(),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        ref.invalidate(itemsByTypeProvider(ItemType.found));
+                      },
+                      child: const Text('Try Again'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -170,47 +137,75 @@ class _LostTab extends ConsumerWidget {
 
 // Matches tab removed
 
-class _MyPostsTab extends ConsumerWidget {
+class _MyPostsTab extends ConsumerStatefulWidget {
   const _MyPostsTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MyPostsTab> createState() => _MyPostsTabState();
+}
+
+class _MyPostsTabState extends ConsumerState<_MyPostsTab> {
+  @override
+  Widget build(BuildContext context) {
     final postedAsync = ref.watch(postedItemsProvider);
-    return postedAsync.when(
-      loading: () => _ShimmerLoadingPlaceholder(),
-      error: (e, _) => _buildErrorState(ref),
-      data: (items) {
-        if (items.isEmpty) {
-          return _buildEmptyState(context);
-        }
-
-        // Group items by status
-        final groupedItems = _groupItemsByStatus(items);
-
-        return ListView.builder(
-          padding: const EdgeInsets.only(
-            bottom: 120, // Extra space for FAB
-            top: AppTheme.spacingL,
-            left: 20,
-            right: 20,
-          ),
-          itemCount: groupedItems.length,
-          itemBuilder: (context, index) {
-            final entry = groupedItems.entries.elementAt(index);
-            final status = entry.key;
-            final statusItems = entry.value;
-
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: index == groupedItems.length - 1
-                    ? 0
-                    : AppTheme.spacingXXL,
-              ),
-              child: _buildStatusSection(context, status, statusItems),
-            );
-          },
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.read(postedItemsProvider.notifier).loadItems();
       },
+      color: AppTheme.primaryBlue,
+      backgroundColor: Colors.white,
+      strokeWidth: 3.0,
+      displacement: 40.0,
+      child: postedAsync.when(
+        loading: () => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 300, child: _ShimmerLoadingPlaceholder()),
+          ],
+        ),
+        error: (e, _) => ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [SizedBox(height: 300, child: _buildErrorState(ref))],
+        ),
+        data: (items) {
+          if (items.isEmpty) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(height: 300, child: _buildEmptyState(context)),
+              ],
+            );
+          }
+
+          // Group items by status
+          final groupedItems = _groupItemsByStatus(items);
+
+          return ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(
+              bottom: 120, // Extra space for FAB
+              top: AppTheme.spacingL,
+              left: 20,
+              right: 20,
+            ),
+            itemCount: groupedItems.length,
+            itemBuilder: (context, index) {
+              final entry = groupedItems.entries.elementAt(index);
+              final status = entry.key;
+              final statusItems = entry.value;
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == groupedItems.length - 1
+                      ? 0
+                      : AppTheme.spacingXXL,
+                ),
+                child: _buildStatusSection(context, status, statusItems),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -292,11 +287,11 @@ class _MyPostsTab extends ConsumerWidget {
 
   Widget _buildStatusSection(
     BuildContext context,
-    String status,
+    ItemStatus status,
     List<PostedItem> items,
   ) {
-    final statusIcon = getStatusIconFromString(status);
-    final statusColor = getStatusColorFromString(status);
+    final statusIcon = getStatusIconFromString(status.apiValue);
+    final statusColor = getStatusColorFromString(status.apiValue);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,7 +299,7 @@ class _MyPostsTab extends ConsumerWidget {
         // Status Header with Divider (reusable)
         StatusHeader(
           icon: statusIcon,
-          label: getUserFriendlyStatusLabelFromString(status),
+          label: status.displayLabel,
           count: items.length,
           color: statusColor,
         ),
@@ -340,7 +335,7 @@ class _MyPostsTab extends ConsumerWidget {
   }
 
   void _showItemActionSheet(BuildContext outerContext, PostedItem item) {
-    final canEditDelete = item.status == ItemStatus.open;
+    final canEditDelete = canModifyItem(item.status, item.type);
 
     showModalBottomSheet(
       context: outerContext,
@@ -423,7 +418,7 @@ class _MyPostsTab extends ConsumerWidget {
                 enabled: canEditDelete,
                 disabledReason: canEditDelete
                     ? null
-                    : _getEditDisabledReason(item.status),
+                    : editDisabledReason(item.status, item.type),
                 color: AppTheme.primaryBlue,
                 onTap: canEditDelete
                     ? () {
@@ -449,7 +444,7 @@ class _MyPostsTab extends ConsumerWidget {
                 enabled: canEditDelete,
                 disabledReason: canEditDelete
                     ? null
-                    : _getDeleteDisabledReason(item.status),
+                    : deleteDisabledReason(item.status, item.type),
                 color: AppTheme.errorRed,
                 onTap: canEditDelete
                     ? () {
@@ -470,36 +465,6 @@ class _MyPostsTab extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  String _getEditDisabledReason(ItemStatus status) {
-    switch (status) {
-      case ItemStatus.matched:
-        return 'Item is matched';
-      case ItemStatus.returned:
-        return 'Item already returned';
-      case ItemStatus.closed:
-        return 'Item is closed';
-      case ItemStatus.unclaimed:
-        return 'Item is unclaimed';
-      case ItemStatus.open:
-        return '';
-    }
-  }
-
-  String _getDeleteDisabledReason(ItemStatus status) {
-    switch (status) {
-      case ItemStatus.matched:
-        return 'Cannot delete matched item';
-      case ItemStatus.returned:
-        return 'Cannot delete returned item';
-      case ItemStatus.closed:
-        return 'Cannot delete closed item';
-      case ItemStatus.unclaimed:
-        return 'Cannot delete unclaimed item';
-      case ItemStatus.open:
-        return '';
-    }
   }
 
   Future<void> _showDeleteConfirmation(
@@ -581,30 +546,30 @@ class _MyPostsTab extends ConsumerWidget {
     }
   }
 
-  Map<String, List<PostedItem>> _groupItemsByStatus(List<PostedItem> items) {
-    final Map<String, List<PostedItem>> grouped = {};
+  Map<ItemStatus, List<PostedItem>> _groupItemsByStatus(
+    List<PostedItem> items,
+  ) {
+    final Map<ItemStatus, List<PostedItem>> grouped = {};
 
     for (final item in items) {
-      final status = item.status.name.toLowerCase();
-      grouped.putIfAbsent(status, () => []).add(item);
+      grouped.putIfAbsent(item.status, () => <PostedItem>[]).add(item);
     }
 
-    // Sort items within each group by creation date (newest first)
-    grouped.forEach((status, items) {
-      items.sort(
+    grouped.forEach((_, statusItems) {
+      statusItems.sort(
         (a, b) =>
             DateTime.parse(b.createdAt).compareTo(DateTime.parse(a.createdAt)),
       );
     });
 
-    // Return in preferred order
-    final orderedGroups = <String, List<PostedItem>>{};
+    final orderedGroups = <ItemStatus, List<PostedItem>>{};
     const preferredOrder = [
-      'open',
-      'matched',
-      'returned',
-      'closed',
-      'unclaimed',
+      ItemStatus.lostReported,
+      ItemStatus.claimPending,
+      ItemStatus.claimApproved,
+      ItemStatus.resolved,
+      ItemStatus.collected,
+      ItemStatus.foundUnclaimed,
     ];
 
     for (final status in preferredOrder) {
@@ -613,11 +578,8 @@ class _MyPostsTab extends ConsumerWidget {
       }
     }
 
-    // Add any remaining statuses
-    grouped.forEach((status, items) {
-      if (!orderedGroups.containsKey(status)) {
-        orderedGroups[status] = items;
-      }
+    grouped.forEach((status, statusItems) {
+      orderedGroups.putIfAbsent(status, () => statusItems);
     });
 
     return orderedGroups;
@@ -647,14 +609,20 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
   @override
   void initState() {
     super.initState();
-    final int tabLength = 3;
+    final int tabLength = 2;
     _tabController = TabController(
       length: tabLength,
       initialIndex: widget.initialTabIndex.clamp(0, tabLength - 1),
       vsync: this,
     );
     _tabController.addListener(() {
-      setState(() {}); // Rebuild to show/hide FAB
+      if (_tabController.indexIsChanging) return;
+      setState(() {
+        final int index = _tabController.index;
+        if (index == 1) {
+          _filterStatus = null;
+        }
+      });
     });
   }
 
@@ -667,9 +635,8 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
 
   @override
   Widget build(BuildContext context) {
-    final recommendedAsync = ref.watch(recommendedItemsProvider);
     // Check if current tab is "My Posts" (index 2)
-    final bool isMyPostsTab = _tabController.index == 2;
+    final bool isMyPostsTab = _tabController.index == 1;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -731,7 +698,7 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                                   });
                                 },
                                 decoration: const InputDecoration(
-                                  hintText: 'Search lost or found items...',
+                                  hintText: 'Search found items...',
                                   hintStyle: TextStyle(
                                     color: AppTheme.textGray,
                                     fontSize: 15,
@@ -812,8 +779,8 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.inventory_2_outlined, size: 16),
-                            SizedBox(width: 4),
+                            const Icon(Icons.inventory_2_outlined, size: 18),
+                            const SizedBox(width: 6),
                             Flexible(
                               child: Text(
                                 'Found',
@@ -828,24 +795,8 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.add_circle_outline_rounded, size: 16),
-                            SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                'Lost',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Tab(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.assignment_outlined, size: 16),
-                            SizedBox(width: 4),
+                            const Icon(Icons.assignment_outlined, size: 18),
+                            const SizedBox(width: 6),
                             Flexible(
                               child: Text(
                                 'My Posts',
@@ -870,22 +821,6 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
           _FoundTab(
             searchQuery: _searchQuery,
             filterStatus: _filterStatus,
-            recommendedAsync: recommendedAsync,
-            expandedCategories: _expandedCategories,
-            onToggleCategory: (title) {
-              setState(() {
-                if (_expandedCategories.contains(title)) {
-                  _expandedCategories.remove(title);
-                } else {
-                  _expandedCategories.add(title);
-                }
-              });
-            },
-          ),
-          _LostTab(
-            searchQuery: _searchQuery,
-            filterStatus: _filterStatus,
-            recommendedAsync: recommendedAsync,
             expandedCategories: _expandedCategories,
             onToggleCategory: (title) {
               setState(() {
@@ -944,11 +879,12 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
 
   Widget _buildNetflixList(
     List<Item> items,
-    AsyncValue<List<MatchScoreItem>> recommendedAsync,
     Set<String> expandedCategories,
     Function(String) onToggleCategory,
   ) {
-    if (items.isEmpty) return _buildEmptyState();
+    if (items.isEmpty) {
+      return _buildEmptyState();
+    }
     final now = DateTime.now();
     final recentItems =
         items.where((item) {
@@ -960,36 +896,7 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
           ).compareTo(DateTime.parse(a.createdAt)),
         );
 
-    final Map<String, List<Item>> categoryMap = {
-      'Recently Posted Items': recentItems,
-      'Electronic': items
-          .where((i) => i.category == ItemCategory.electronics)
-          .toList(),
-      'Document': items
-          .where((i) => i.category == ItemCategory.documents)
-          .toList(),
-      'Accessories': items
-          .where((i) => i.category == ItemCategory.accessories)
-          .toList(),
-      'ID and Cards': items
-          .where((i) => i.category == ItemCategory.idOrCards)
-          .toList(),
-      'Clothing': items
-          .where((i) => i.category == ItemCategory.clothing)
-          .toList(),
-      'Bag and Pouches': items
-          .where((i) => i.category == ItemCategory.bagOrPouches)
-          .toList(),
-      'Personal Item': items
-          .where((i) => i.category == ItemCategory.personalItems)
-          .toList(),
-      'School Supplies': items
-          .where((i) => i.category == ItemCategory.schoolSupplies)
-          .toList(),
-      'Others Types': items
-          .where((i) => i.category == ItemCategory.others)
-          .toList(),
-    };
+    final categoryMap = _groupItemsByCategory(items, recentItems);
     return ListView.builder(
       padding: const EdgeInsets.only(
         bottom: AppTheme.spacingXL,
@@ -1080,6 +987,33 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
     );
   }
 
+  Map<String, List<Item>> _groupItemsByCategory(
+    List<Item> items,
+    List<Item> recentItems,
+  ) {
+    final Map<ItemCategory, List<Item>> categoryBuckets = {};
+    for (final item in items) {
+      categoryBuckets.putIfAbsent(item.category, () => <Item>[]).add(item);
+    }
+
+    final map = <String, List<Item>>{
+      'Recently Posted Items': recentItems,
+      'Electronic': categoryBuckets[ItemCategory.electronics] ?? <Item>[],
+      'Document': categoryBuckets[ItemCategory.documents] ?? <Item>[],
+      'Accessories': categoryBuckets[ItemCategory.accessories] ?? <Item>[],
+      'ID and Cards': categoryBuckets[ItemCategory.idOrCards] ?? <Item>[],
+      'Clothing': categoryBuckets[ItemCategory.clothing] ?? <Item>[],
+      'Bag and Pouches': categoryBuckets[ItemCategory.bagOrPouches] ?? <Item>[],
+      'Personal Item': categoryBuckets[ItemCategory.personalItems] ?? <Item>[],
+      'School Supplies':
+          categoryBuckets[ItemCategory.schoolSupplies] ?? <Item>[],
+      'Others Types': categoryBuckets[ItemCategory.others] ?? <Item>[],
+    };
+
+    map.removeWhere((_, list) => list.isEmpty);
+    return map;
+  }
+
   /// Get icon for category SECTION headers (e.g., "Recently Posted Items", "Electronic")
   /// Different from item category icons - this is for UI section headers
   IconData _getCategorySectionIcon(String categoryName) {
@@ -1144,7 +1078,7 @@ class _LostAndFoundScreenState extends ConsumerState<LostAndFoundScreen>
     return const EmptyState(
       icon: Icons.inventory_2_outlined,
       title: 'No items available yet',
-      subtitle: 'Items that are lost or found will appear here',
+      subtitle: 'Found items will appear here soon',
       padding: EdgeInsets.all(AppTheme.spacingXL),
     );
   }

@@ -2,38 +2,50 @@ enum ItemCategory {
   electronics,
   documents,
   accessories,
-  idOrCards, 
+  idOrCards,
   clothing,
-  bagOrPouches, 
+  bagOrPouches,
   personalItems,
-  schoolSupplies, 
+  schoolSupplies,
   others,
 }
 
 extension ItemCategoryExtension on ItemCategory {
+  static final Map<String, ItemCategory> _normalizedMap = {
+    'electronics': ItemCategory.electronics,
+    'document': ItemCategory.documents,
+    'documents': ItemCategory.documents,
+    'accessory': ItemCategory.accessories,
+    'accessories': ItemCategory.accessories,
+    'idsandcards': ItemCategory.idOrCards,
+    'idsndcards': ItemCategory.idOrCards,
+    'idcards': ItemCategory.idOrCards,
+    'idscards': ItemCategory.idOrCards,
+    'idandcards': ItemCategory.idOrCards,
+    'idcardsand': ItemCategory.idOrCards,
+    'clothing': ItemCategory.clothing,
+    'bagpouches': ItemCategory.bagOrPouches,
+    'bagandpouches': ItemCategory.bagOrPouches,
+    'personalitems': ItemCategory.personalItems,
+    'schoolsupplies': ItemCategory.schoolSupplies,
+    'other': ItemCategory.others,
+    'others': ItemCategory.others,
+  };
+
+  static String _normalize(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
   static ItemCategory fromString(String category) {
-  switch (category) {
-      case 'electronics':
-        return ItemCategory.electronics;
-      case 'documents':
-        return ItemCategory.documents;
-      case 'accessories':
-        return ItemCategory.accessories;
-      case 'idOrCards':
-        return ItemCategory.idOrCards;
-      case 'clothing':
-        return ItemCategory.clothing;
-      case 'bagOrPouches':
-        return ItemCategory.bagOrPouches;
-      case 'personalItems':
-        return ItemCategory.personalItems;
-      case 'schoolSupplies':
-        return ItemCategory.schoolSupplies;
-      case 'others':
-        return ItemCategory.others;
-      default:
-        throw Exception('Unknown ItemCategory: $category');
-    }
+    final normalized = _normalize(category);
+    final match = _normalizedMap[normalized];
+    if (match != null) return match;
+    throw Exception('Unknown ItemCategory: $category');
+  }
+
+  static ItemCategory? tryParse(String? category) {
+    if (category == null || category.isEmpty) return null;
+    final normalized = _normalize(category);
+    return _normalizedMap[normalized];
   }
 
   String get label {

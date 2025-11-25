@@ -1,4 +1,6 @@
 import 'package:navistfind/core/navigation/app_routes.dart';
+import 'package:navistfind/core/navigation/navigation_service.dart';
+import 'package:navistfind/core/notifications/push_notification_listener.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/widgets/performance_monitor.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +13,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Modular Flutter App',
       debugShowCheckedModeBanner: false,
+      navigatorKey: rootNavigatorKey,
       theme: ThemeData(
         primaryColor: const Color(0xFF123A7D),
         colorScheme: ColorScheme.fromSeed(
@@ -37,10 +40,13 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: AppRoutes.splash,
       routes: AppRoutes.routes,
-      builder: (context, child) => PerformanceMonitor(
-        enabled: false,
-        child: child ?? const SizedBox.shrink(),
-      ),
+      builder: (context, child) {
+        final monitored = PerformanceMonitor(
+          enabled: false,
+          child: child ?? const SizedBox.shrink(),
+        );
+        return PushNotificationListener(child: monitored);
+      },
     );
   }
 }

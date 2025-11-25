@@ -126,5 +126,5 @@ userRule: |
   - Be concise, structured, and use technical clarity.
   - Use a helpful mentor tone — clear and confident, not robotic.
   - Explain design decisions briefly only when relevant.
-alwaysApply: true
+alwaysApply: false
 ---

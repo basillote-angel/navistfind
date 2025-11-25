@@ -1,9 +1,17 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
+import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
+import 'package:navistfind/features/lost_found/item/application/claim_status_cache_provider.dart';
 import 'package:navistfind/features/lost_found/item/data/item_service.dart';
+import 'package:navistfind/features/lost_found/item/domain/enums/claim_status.dart';
+import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
+import 'package:navistfind/features/notifications/data/claim_subscription_service.dart';
 import 'package:navistfind/features/profile/application/profile_provider.dart';
 import 'dart:async';
+import 'dart:io';
 
 class ClaimItemPage extends ConsumerStatefulWidget {
   final int itemId;
@@ -17,11 +25,14 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
     with SingleTickerProviderStateMixin {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _contactNameController = TextEditingController();
-  final TextEditingController _contactInfoController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneNumberController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   bool _submitting = false;
   bool _showSuccess = false;
   bool _profileLoaded = false;
+  File? _selectedImage;
+  final ImagePicker _imagePicker = ImagePicker();
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -44,32 +55,63 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
     _loadUserProfile();
   }
 
-  void _loadUserProfile() {
-    // Read profile provider and auto-fill when available
-    final profileAsync = ref.read(profileInfoProvider);
-    profileAsync.whenData((user) {
+  Future<void> _loadUserProfile() async {
+    try {
+      // Read profile provider and auto-fill when available
+      final user = await ref.read(profileInfoProvider.future);
       if (mounted && !_profileLoaded) {
-        Future.microtask(() {
-          if (mounted) {
-            setState(() {
-              if (_contactNameController.text.isEmpty) {
-                _contactNameController.text = user.name;
-              }
-              if (_contactInfoController.text.isEmpty) {
-                _contactInfoController.text = user.email;
-              }
-              _profileLoaded = true;
-            });
+        setState(() {
+          if (_contactNameController.text.isEmpty) {
+            _contactNameController.text = user.name;
           }
+          if (_emailController.text.isEmpty) {
+            _emailController.text = user.email;
+          }
+          _profileLoaded = true;
         });
       }
+    } catch (e) {
+      // Profile loading failed, but we can still proceed with manual entry
+      print('Failed to load profile: $e');
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeImage() async {
+    setState(() {
+      _selectedImage = null;
     });
   }
 
   @override
   void dispose() {
     _contactNameController.dispose();
-    _contactInfoController.dispose();
+    _emailController.dispose();
+    _phoneNumberController.dispose();
     _messageController.dispose();
     _animationController.dispose();
     super.dispose();
@@ -88,12 +130,24 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
       await service.claimFoundItem(
         id: widget.itemId,
         message: _messageController.text.trim(),
-        contactName: _contactNameController.text.trim().isEmpty
-            ? null
-            : _contactNameController.text.trim(),
-        contactInfo: _contactInfoController.text.trim().isEmpty
-            ? null
-            : _contactInfoController.text.trim(),
+        contactName: _contactNameController.text.trim(),
+        email: _emailController.text.trim(),
+        phoneNumber: _phoneNumberController.text.trim(),
+        imageFile: _selectedImage,
+      );
+
+      await ClaimSubscriptionService().subscribeToClaimUpdates(
+        itemId: widget.itemId,
+      );
+
+      ref
+          .read(claimStatusCacheProvider.notifier)
+          .setStatus(widget.itemId, ClaimStatus.pending);
+      ref.invalidate(itemListProvider);
+      ref.invalidate(itemsByTypeProvider(ItemType.found));
+      ref.invalidate(itemDetailsProvider(widget.itemId));
+      ref.invalidate(
+        itemDetailsWithTypeProvider((id: widget.itemId, type: ItemType.found)),
       );
 
       if (!mounted) return;
@@ -121,7 +175,7 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
               SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Claim submitted successfully! Admin will review your request.',
+                  'Claim submitted — waiting for admin',
                   style: TextStyle(fontSize: 14),
                 ),
               ),
@@ -136,9 +190,30 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
           duration: const Duration(seconds: 4),
         ),
       );
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _submitting = false);
+
+      String message = 'Failed to submit claim. Please try again.';
+      if (error is DioException) {
+        final status = error.response?.statusCode;
+        if (status == 409) {
+          message =
+              'You already have a pending claim for this item. Please wait for the admin update.';
+        } else if (status == 400 || status == 422) {
+          final data = error.response?.data;
+          if (data is Map && data['message'] is String) {
+            message = data['message'] as String;
+          }
+        } else if (error.message != null) {
+          message = error.message!;
+        }
+      } else if (error is Exception) {
+        final text = error.toString();
+        if (text.isNotEmpty) {
+          message = text.replaceAll('Exception: ', '');
+        }
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -147,10 +222,7 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
               const Icon(Icons.error_outline, color: Colors.white),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Failed to submit claim: ${e.toString().replaceAll('Exception: ', '')}',
-                  style: const TextStyle(fontSize: 14),
-                ),
+                child: Text(message, style: const TextStyle(fontSize: 14)),
               ),
             ],
           ),
@@ -226,10 +298,10 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
                   ),
                   const SizedBox(height: 24),
                   const Text(
-                    'Claim Submitted!',
+                    'Claim Submitted — Waiting for Admin',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
                       color: Colors.green,
                     ),
                   ),
@@ -237,7 +309,7 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 40),
                     child: Text(
-                      'Your claim has been submitted successfully. Admin will review your request and notify you soon.',
+                      'Your claim has been submitted successfully. We will notify you as soon as an admin reviews the request.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
@@ -353,23 +425,40 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
-                  controller: _contactInfoController,
-                  decoration: _inputDecoration(
-                    'Phone Number or Email',
-                    Icons.contact_phone_outlined,
-                  ),
+                  controller: _emailController,
+                  decoration: _inputDecoration('Email', Icons.email_outlined),
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'Please enter your contact information';
+                      return 'Please enter your email';
                     }
                     final emailRegex = RegExp(
                       r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                     );
+                    if (!emailRegex.hasMatch(v.trim())) {
+                      return 'Please enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _phoneNumberController,
+                  decoration: _inputDecoration(
+                    'Phone Number',
+                    Icons.phone_outlined,
+                  ),
+                  keyboardType: TextInputType.phone,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'Please enter your phone number';
+                    }
                     final phoneRegex = RegExp(r'^[0-9+\-\s()]+$');
-                    if (!emailRegex.hasMatch(v.trim()) &&
-                        !phoneRegex.hasMatch(v.trim())) {
-                      return 'Please enter a valid email or phone number';
+                    if (!phoneRegex.hasMatch(v.trim())) {
+                      return 'Please enter a valid phone number';
+                    }
+                    if (v.trim().length < 10) {
+                      return 'Phone number must be at least 10 digits';
                     }
                     return null;
                   },
@@ -423,6 +512,85 @@ class _ClaimItemPageState extends ConsumerState<ClaimItemPage>
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 24),
+
+                // Optional Image Upload Section
+                _buildSectionTitle('Proof Image (Optional)'),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: _selectedImage == null
+                      ? InkWell(
+                          onTap: _pickImage,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Add Photo (Optional)',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Upload an image as proof of ownership',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                _selectedImage!,
+                                width: double.infinity,
+                                height: 200,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Material(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(20),
+                                child: InkWell(
+                                  onTap: _removeImage,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
                 const SizedBox(height: 32),
 
