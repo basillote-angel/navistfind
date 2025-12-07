@@ -297,16 +297,25 @@ class ItemService {
   Future<void> postAiFeedback({
     required int itemId,
     required int matchedItemId,
-    required String action, // positive | negative | dismissed
+    required String
+    action, // positive | negative (dismissed is not supported - use negative instead)
     String? source, // home | recommended | detail | matches
   }) async {
     try {
+      // Validate action - only allow 'positive' or 'negative'
+      // 'dismissed' is not a valid enum value on server, use 'negative' instead
+      final validAction = action == 'dismissed' ? 'negative' : action;
+      if (validAction != 'positive' && validAction != 'negative') {
+        print('Warning: Invalid action "$action", using "negative" instead');
+        return;
+      }
+
       await ApiClient.client.post(
         '/api/ai/feedback',
         data: {
           'itemId': itemId,
           'matchedItemId': matchedItemId,
-          'action': action,
+          'action': validAction,
           if (source != null) 'source': source,
         },
       );

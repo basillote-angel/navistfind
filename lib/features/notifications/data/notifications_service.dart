@@ -26,6 +26,12 @@ class NotificationsService {
       case 'claimrejected':
       case 'claim_rejected':
         return NotificationType.claimRejected;
+      case 'claimcancelled':
+      case 'claim_cancelled':
+      case 'claimcanceled':
+      case 'claim_canceled':
+        return NotificationType
+            .claimRejected; // Treat cancelled as rejected for UI purposes
       case 'collectionreminder':
       case 'collection_reminder':
         return NotificationType.collectionReminder;

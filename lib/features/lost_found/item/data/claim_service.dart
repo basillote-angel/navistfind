@@ -244,41 +244,105 @@ class ClaimService {
             stackTrace: stackTrace,
           );
         }
+      } else {
+        // Handle non-200 status codes
+        final errorMessage =
+            response.data?['message'] ??
+            response.data?['error'] ??
+            'Failed to fetch claim details (status: ${response.statusCode})';
+
+        // Check for server-side match status errors and provide user-friendly message
+        if (errorMessage.toString().contains('status') &&
+            errorMessage.toString().contains('truncated')) {
+          print(
+            '[ClaimService] Server match status error detected, handling gracefully',
+          );
+          // Return a basic claim detail with error indication
+          throw DioException(
+            requestOptions: response.requestOptions,
+            error:
+                'Claim information is temporarily unavailable. Please try again later.',
+            response: response,
+          );
+        }
+
+        throw DioException(
+          requestOptions: response.requestOptions,
+          error: errorMessage,
+          response: response,
+        );
       }
-      throw DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        error: 'Failed to load claim detail (status: ${response.statusCode})',
-      );
-    } on DioException {
+    } on DioException catch (e) {
+      // Handle specific server errors gracefully
+      if (e.response?.statusCode == 500) {
+        final errorMessage = e.response?.data?['message']?.toString() ?? '';
+        if (errorMessage.contains('status') &&
+            errorMessage.contains('truncated')) {
+          print(
+            '[ClaimService] Match status error from server, returning graceful error',
+          );
+          throw DioException(
+            requestOptions: e.requestOptions,
+            error:
+                'Claim information is temporarily unavailable due to a server configuration issue. Please contact support.',
+            response: e.response,
+          );
+        }
+      }
       rethrow;
-    } catch (error, stackTrace) {
+    } catch (e, stackTrace) {
+      print('[ClaimService] Unexpected error fetching claim detail: $e');
       throw DioException(
         requestOptions: RequestOptions(path: '/api/items/$itemId'),
-        error: error,
+        error: 'Unexpected error: $e',
         stackTrace: stackTrace,
       );
     }
   }
 
-  String _mapItemStatusToClaimStatus(String itemStatus) {
-    final upper = itemStatus.toUpperCase();
-    if (upper == 'CLAIM_PENDING' || upper.contains('PENDING')) {
-      return 'PENDING';
-    } else if (upper == 'CLAIM_APPROVED' || upper.contains('APPROVED')) {
-      return 'APPROVED';
-    } else if (upper.contains('REJECTED')) {
-      return 'REJECTED';
-    } else if (upper.contains('WITHDRAWN') || upper.contains('CANCELLED')) {
-      return 'WITHDRAWN';
+  /// Submit a claim for a found item
+  Future<Map<String, dynamic>> submitClaim({
+    required int itemId,
+    required String message,
+    String? contactName,
+    String? contactInfo,
+    String? contactEmail,
+    String? contactPhone,
+    String? claimImagePath,
+  }) async {
+    try {
+      final response = await _client.post(
+        '/api/items/$itemId/claim',
+        data: {
+          'message': message,
+          if (contactName != null) 'claimant_contact_name': contactName,
+          if (contactInfo != null) 'claimant_contact_info': contactInfo,
+          if (contactEmail != null) 'claimant_email': contactEmail,
+          if (contactPhone != null) 'claimant_phone': contactPhone,
+          if (claimImagePath != null) 'claim_image': claimImagePath,
+        },
+      );
+      return response.data;
+    } on DioException catch (e) {
+      // Handle server errors gracefully, especially match status errors
+      if (e.response?.statusCode == 500) {
+        final errorMessage = e.response?.data?['message']?.toString() ?? '';
+        if (errorMessage.contains('status') &&
+            errorMessage.contains('truncated')) {
+          print('[ClaimService] Match status error during claim submission');
+          throw DioException(
+            requestOptions: e.requestOptions,
+            error:
+                'Your claim was submitted, but there was a server issue processing match information. Your claim is still pending review.',
+            response: e.response,
+          );
+        }
+      }
+      rethrow;
     }
-    // Default to pending if status indicates a claim exists
-    if (upper.contains('CLAIM')) {
-      return 'PENDING';
-    }
-    return 'PENDING';
   }
 
+  /// Update an existing claim
   Future<void> updateClaim({
     required int itemId,
     String? message,
@@ -287,12 +351,13 @@ class ClaimService {
   }) async {
     final payload = <String, dynamic>{};
     if (message != null) payload['message'] = message;
-    if (contactName != null) payload['contactName'] = contactName;
-    if (contactInfo != null) payload['contactInfo'] = contactInfo;
+    if (contactName != null) payload['claimant_contact_name'] = contactName;
+    if (contactInfo != null) payload['claimant_contact_info'] = contactInfo;
 
     await _client.put('/api/items/$itemId/claim', data: payload);
   }
 
+  /// Delete/withdraw a claim
   Future<void> cancelClaim({required int itemId, int? claimId}) async {
     // Try DELETE on claim endpoint first if we have claimId
     if (claimId != null && claimId > 0) {
@@ -324,6 +389,24 @@ class ClaimService {
           'withdraw': true,
         },
       );
+    }
+  }
+
+  /// Helper to map item status to claim status
+  String _mapItemStatusToClaimStatus(String itemStatus) {
+    final upper = itemStatus.toUpperCase();
+    if (upper.contains('PENDING') || upper.contains('CLAIM_PENDING')) {
+      return 'PENDING';
+    } else if (upper == 'CLAIM_APPROVED' || upper.contains('APPROVED')) {
+      return 'APPROVED';
+    } else if (upper.contains('REJECTED')) {
+      return 'REJECTED';
+    } else if (upper.contains('WITHDRAWN')) {
+      return 'WITHDRAWN';
+    } else if (upper == 'COLLECTED') {
+      return 'APPROVED'; // Collected items have approved claims
+    } else {
+      return 'PENDING'; // Default fallback
     }
   }
 }

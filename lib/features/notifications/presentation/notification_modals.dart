@@ -2,16 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:navistfind/core/theme/app_theme.dart';
-import 'package:navistfind/core/utils/snackbar_utils.dart';
 import 'package:navistfind/features/lost_found/item/application/claim_provider.dart';
-import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
-import 'package:navistfind/features/lost_found/item/domain/enums/claim_status.dart';
 import 'package:navistfind/features/lost_found/item/domain/models/claim_detail.dart';
 import 'package:navistfind/features/lost_found/item/presentation/claim_status_page.dart';
-import 'package:navistfind/features/lost_found/post-item/domain/enums/item_type.dart';
 import 'package:navistfind/features/notifications/domain/notification.dart';
-import 'package:navistfind/features/profile/domain/models/claim_request.dart';
-import 'package:navistfind/features/profile/presentation/edit_claim_request_page.dart';
 
 /// Show claim approval notification modal
 Future<void> showClaimApprovalModal(
@@ -724,7 +718,7 @@ class _ClaimSubmittedModal extends ConsumerWidget {
   }
 }
 
-class _SubmittedContent extends ConsumerStatefulWidget {
+class _SubmittedContent extends ConsumerWidget {
   const _SubmittedContent({
     required this.claim,
     required this.notification,
@@ -736,93 +730,10 @@ class _SubmittedContent extends ConsumerStatefulWidget {
   final int itemId;
 
   @override
-  ConsumerState<_SubmittedContent> createState() => _SubmittedContentState();
-}
-
-class _SubmittedContentState extends ConsumerState<_SubmittedContent> {
-  bool _isCancelling = false;
-
-  Future<void> _handleEdit() async {
-    final claimRequest = ClaimRequest.fromDetail(widget.claim);
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (ctx) => EditClaimRequestPage(claim: claimRequest),
-      ),
-    );
-
-    if (result == true && mounted) {
-      // Refresh claim details after editing
-      ref.invalidate(claimDetailProvider(widget.itemId));
-      SnackbarUtils.showSuccess(context, 'Claim request updated successfully.');
-    }
-  }
-
-  Future<void> _handleCancel() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: const Text('Cancel Claim Request?'),
-        content: const Text(
-          'Are you sure you want to cancel this claim request? You can submit a new claim later if needed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Keep Request'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorRed,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Cancel Request'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _isCancelling = true);
-
-    try {
-      final notifier = ref.read(claimRequestsProvider.notifier);
-      final error = await notifier.cancelClaim(
-        itemId: widget.itemId,
-        claimId: widget.claim.id,
-      );
-
-      if (!mounted) return;
-
-      if (error == null) {
-        ref.invalidate(itemsByTypeProvider(ItemType.found));
-        ref.invalidate(itemListProvider);
-        SnackbarUtils.showSuccess(
-          context,
-          'Your claim request has been cancelled.',
-        );
-        Navigator.of(context).pop();
-      } else {
-        SnackbarUtils.showError(context, error);
-        setState(() => _isCancelling = false);
-      }
-    } catch (e) {
-      if (mounted) {
-        SnackbarUtils.showError(context, 'Failed to cancel claim: $e');
-        setState(() => _isCancelling = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dateFormat = DateFormat('MMM d, yyyy • h:mm a');
-    final sentAt = dateFormat.format(widget.notification.createdAt);
-    final submittedAt = dateFormat.format(widget.claim.submittedAt);
+    final sentAt = dateFormat.format(notification.createdAt);
+    final submittedAt = dateFormat.format(claim.submittedAt);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -847,8 +758,8 @@ class _SubmittedContentState extends ConsumerState<_SubmittedContent> {
               ),
               const SizedBox(height: 16),
               Text(
-                widget.notification.title.isNotEmpty
-                    ? widget.notification.title
+                notification.title.isNotEmpty
+                    ? notification.title
                     : 'Claim Submitted',
                 style: AppTheme.heading3.copyWith(color: AppTheme.primaryBlue),
                 textAlign: TextAlign.center,
@@ -869,60 +780,42 @@ class _SubmittedContentState extends ConsumerState<_SubmittedContent> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Display the enhanced formal message from backend
-                _MessageSection(message: widget.notification.body),
+                _MessageSection(message: notification.body),
                 const SizedBox(height: 16),
-                if (widget.claim.foundItemTitle != null)
+                if (claim.foundItemTitle != null)
                   _InfoRow(
                     icon: Icons.inventory_2_outlined,
                     label: 'Item',
-                    value: widget.claim.foundItemTitle!,
+                    value: claim.foundItemTitle!,
                   ),
                 _InfoRow(
                   icon: Icons.access_time_outlined,
                   label: 'Submitted',
                   value: submittedAt,
                 ),
-                if (widget.claim.message.isNotEmpty)
+                if (claim.message.isNotEmpty)
                   _InfoRow(
                     icon: Icons.message_outlined,
                     label: 'Your Message',
-                    value: widget.claim.message,
+                    value: claim.message,
                   ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
-        // Actions - Edit, Cancel Request, and Close buttons
+        // Actions - Only Close button
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            if (!_isCancelling)
-              TextButton.icon(
-                onPressed: _handleEdit,
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Edit'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.primaryBlue,
-                ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                foregroundColor: Colors.white,
               ),
-            if (!_isCancelling) ...[
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: _handleCancel,
-                icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Cancel'),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-              ),
-            ],
-            if (_isCancelling) ...[
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 12),
-            ],
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
           ],
         ),
       ],
@@ -1299,7 +1192,7 @@ class _RejectionContentFallback extends StatelessWidget {
 }
 
 /// Submitted Content Fallback
-class _SubmittedContentFallback extends ConsumerStatefulWidget {
+class _SubmittedContentFallback extends ConsumerWidget {
   const _SubmittedContentFallback({
     required this.notification,
     required this.itemId,
@@ -1311,186 +1204,9 @@ class _SubmittedContentFallback extends ConsumerStatefulWidget {
   final Object error;
 
   @override
-  ConsumerState<_SubmittedContentFallback> createState() =>
-      _SubmittedContentFallbackState();
-}
-
-class _SubmittedContentFallbackState
-    extends ConsumerState<_SubmittedContentFallback> {
-  bool _isCancelling = false;
-
-  Future<void> _handleEdit() async {
-    // Try to fetch claim detail first
-    ClaimRequest claimRequest;
-    try {
-      final claimDetail = await ref.read(
-        claimDetailProvider(widget.itemId).future,
-      );
-      claimRequest = ClaimRequest.fromDetail(claimDetail);
-    } catch (e) {
-      // If we can't fetch claim details (e.g., item deleted), create a minimal ClaimRequest
-      // from notification data so user can still try to edit
-      if (!mounted) return;
-
-      final shouldProceed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          ),
-          title: const Text('Item Not Found'),
-          content: const Text(
-            'The item details are no longer available. You can still try to update your claim request, but some information may be missing.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
-      );
-
-      if (shouldProceed != true || !mounted) return;
-
-      // Create minimal ClaimRequest from notification
-      claimRequest = ClaimRequest(
-        id: 0, // Will be set by backend
-        foundItemId: widget.itemId,
-        status: ClaimStatus.pending,
-        message: '', // Empty, user will fill it
-        foundItemTitle: widget.notification.title.contains("'")
-            ? widget.notification.title.split("'")[1].split("'")[0]
-            : null,
-        submittedAt: widget.notification.createdAt,
-      );
-    }
-
-    if (!mounted) return;
-
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (ctx) => EditClaimRequestPage(claim: claimRequest),
-      ),
-    );
-
-    if (result == true && mounted) {
-      // Refresh claim details after editing
-      ref.invalidate(claimDetailProvider(widget.itemId));
-      SnackbarUtils.showSuccess(context, 'Claim request updated successfully.');
-    }
-  }
-
-  Future<void> _handleCancel() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        ),
-        title: const Text('Cancel Claim Request?'),
-        content: const Text(
-          'Are you sure you want to cancel this claim request? You can submit a new claim later if needed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Keep Request'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorRed,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Cancel Request'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _isCancelling = true);
-
-    try {
-      final notifier = ref.read(claimRequestsProvider.notifier);
-      // Try to get claim ID, but don't fail if we can't get it
-      int? claimId;
-      try {
-        final claimDetail = await ref.read(
-          claimDetailProvider(widget.itemId).future,
-        );
-        claimId = claimDetail.id;
-      } catch (e) {
-        // If we can't fetch claim detail (e.g., item deleted), proceed without claimId
-        // The backend might still be able to cancel with just itemId
-        print(
-          '[NotificationModals] Could not fetch claim detail for cancel: $e',
-        );
-      }
-
-      final error = await notifier.cancelClaim(
-        itemId: widget.itemId,
-        claimId: claimId,
-      );
-
-      if (!mounted) return;
-
-      if (error == null) {
-        ref.invalidate(itemsByTypeProvider(ItemType.found));
-        ref.invalidate(itemListProvider);
-        SnackbarUtils.showSuccess(
-          context,
-          'Your claim request has been cancelled.',
-        );
-        Navigator.of(context).pop();
-      } else {
-        // Check if error is about not finding claim
-        final errorMessage = error.toLowerCase();
-        if (errorMessage.contains('not found') ||
-            errorMessage.contains('no active claim') ||
-            errorMessage.contains('404')) {
-          SnackbarUtils.showError(
-            context,
-            'This claim request may have already been cancelled or the item has been removed.',
-          );
-        } else {
-          SnackbarUtils.showError(context, error);
-        }
-        setState(() => _isCancelling = false);
-      }
-    } catch (e) {
-      if (mounted) {
-        final errorStr = e.toString().toLowerCase();
-        if (errorStr.contains('not found') || errorStr.contains('404')) {
-          SnackbarUtils.showError(
-            context,
-            'This claim request may have already been cancelled or the item has been removed.',
-          );
-        } else {
-          SnackbarUtils.showError(context, 'Failed to cancel claim: $e');
-        }
-        setState(() => _isCancelling = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dateFormat = DateFormat('MMM d, yyyy • h:mm a');
-    final sentAt = dateFormat.format(widget.notification.createdAt);
-    final isNotFound =
-        widget.error.toString().contains('404') ||
-        widget.error.toString().contains('not found');
+    final sentAt = dateFormat.format(notification.createdAt);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1514,8 +1230,8 @@ class _SubmittedContentFallbackState
               ),
               const SizedBox(height: 16),
               Text(
-                widget.notification.title.isNotEmpty
-                    ? widget.notification.title
+                notification.title.isNotEmpty
+                    ? notification.title
                     : 'Claim Submitted',
                 style: AppTheme.heading3.copyWith(color: AppTheme.primaryBlue),
                 textAlign: TextAlign.center,
@@ -1529,70 +1245,24 @@ class _SubmittedContentFallbackState
           ),
         ),
         const SizedBox(height: 24),
-        if (isNotFound)
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: AppTheme.warningOrange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.info_outline,
-                  color: AppTheme.warningOrange,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Item details are no longer available. The claim may have been processed or the item removed.',
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.warningOrange,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         Expanded(
           child: SingleChildScrollView(
-            child: _MessageSection(message: widget.notification.body),
+            child: _MessageSection(message: notification.body),
           ),
         ),
         const SizedBox(height: 16),
-        // Actions - Edit, Cancel Request, and Close buttons
+        // Actions - Only Close button
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            if (!_isCancelling)
-              TextButton.icon(
-                onPressed: _handleEdit,
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Edit'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.primaryBlue,
-                ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                foregroundColor: Colors.white,
               ),
-            if (!_isCancelling) ...[
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: _handleCancel,
-                icon: const Icon(Icons.cancel_outlined, size: 18),
-                label: const Text('Cancel'),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.errorRed),
-              ),
-            ],
-            if (_isCancelling) ...[
-              const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 12),
-            ],
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
           ],
         ),
       ],
