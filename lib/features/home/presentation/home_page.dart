@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:navistfind/features/lost_found/post-item/presentation/post_item_screen.dart';
-import 'package:navistfind/features/navigate/presentation/campus_map_screen.dart';
+import 'package:navistfind/core/navigation/navigation_bar_app.dart';
 import 'package:navistfind/features/lost_found/item/application/item_provider.dart';
 import 'package:navistfind/features/lost_found/item/domain/models/item.dart';
 import 'package:navistfind/widgets/item_card.dart';
@@ -15,7 +15,6 @@ import 'package:navistfind/widgets/loading_placeholders.dart';
 import 'package:navistfind/features/notifications/presentation/notification_screen.dart';
 import 'package:navistfind/features/notifications/application/notifications_provider.dart';
 import 'package:navistfind/features/profile/application/profile_provider.dart';
-import 'package:navistfind/core/navigation/navigation_bar_app.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -347,9 +346,14 @@ class _HomePageState extends ConsumerState<HomePage> {
         icon: Icons.navigation_rounded,
         label: 'Navigate Campus',
         onTap: () {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const CampusMapScreen()));
+          // Navigate to AR Navigation page via bottom navigation bar
+          final navigationBarState = context
+              .findAncestorStateOfType<NavigationBarAppState>();
+          if (navigationBarState != null) {
+            navigationBarState.setState(() {
+              navigationBarState.currentIndex = 2; // Navigate tab index
+            });
+          }
         },
       ),
       _QuickAction(

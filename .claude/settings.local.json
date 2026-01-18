@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"C:\\\\CAPSTONE PROJECT\\\\AR\\\\ARNavigation\\\\NavistFindAR\")",
+      "Bash(where:*)",
+      "Bash(\"C:\\\\Users\\\\jonar\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\build-tools\\\\30.0.3\\\\aapt.exe\" dump badging \"C:\\\\Users\\\\jonar\\\\Downloads\\\\navist_find_ar.apk\")"
+    ]
+  }
+}

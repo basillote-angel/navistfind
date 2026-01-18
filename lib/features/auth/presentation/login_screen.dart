@@ -3,7 +3,6 @@ import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/features/auth/application/auth_provider.dart';
 import 'package:navistfind/features/profile/application/profile_provider.dart';
 import 'package:navistfind/core/secure_storage.dart';
-import 'package:navistfind/widgets/google_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -194,35 +193,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       const SizedBox(height: 12),
 
-      // Remember Me and Forgot Password row
+      // Remember Me row (Forgot Password removed)
       Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Checkbox(
-                value: _rememberMe,
-                onChanged: (value) {
-                  setState(() {
-                    _rememberMe = value ?? false;
-                  });
-                },
-                activeColor: AppTheme.primaryBlue,
-              ),
-              Text(
-                'Remember me',
-                style: AppTheme.bodySmall.copyWith(color: AppTheme.textGray),
-              ),
-            ],
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pushNamed(context, AppRoutes.forgotPassword);
+          Checkbox(
+            value: _rememberMe,
+            onChanged: (value) {
+              setState(() {
+                _rememberMe = value ?? false;
+              });
             },
-            child: Text(
-              'Forgot Password?',
-              style: AppTheme.bodySmall.copyWith(color: AppTheme.primaryBlue),
-            ),
+            activeColor: AppTheme.primaryBlue,
+          ),
+          Text(
+            'Remember me',
+            style: AppTheme.bodySmall.copyWith(color: AppTheme.textGray),
           ),
         ],
       ),
@@ -316,113 +301,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: const Text(
             'Sign In',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-
-      const SizedBox(height: 20),
-
-      // Divider with "OR"
-      Row(
-        children: [
-          Expanded(child: Divider(color: Colors.grey.shade300)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'OR',
-              style: AppTheme.bodySmall.copyWith(
-                color: AppTheme.textGray,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(child: Divider(color: Colors.grey.shade300)),
-        ],
-      ),
-
-      const SizedBox(height: 20),
-
-      // Google Sign-In Button
-      SizedBox(
-        height: 56,
-        child: OutlinedButton.icon(
-          onPressed: isLoading
-              ? null
-              : () async {
-                  ref.read(loginStateProvider.notifier).state = true;
-                  final error = await ref.read(authProvider).signInWithGoogle();
-                  ref.read(loginStateProvider.notifier).state = false;
-
-                  if (error == null) {
-                    // Register device token after successful Google sign-in
-                    try {
-                      final fcmToken = await FirebaseMessaging.instance
-                          .getToken();
-                      if (fcmToken != null) {
-                        await DeviceTokenService().registerToken(fcmToken);
-                      }
-                    } catch (_) {}
-
-                    ref.invalidate(profileInfoProvider);
-                    ref.invalidate(postedItemsProvider);
-
-                    if (mounted) {
-                      Navigator.pushReplacementNamed(context, AppRoutes.home);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle_outline,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Signed in with Google successfully',
-                                ),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: AppTheme.successGreen,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  } else if (error != 'Sign-in was canceled') {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(child: Text(error)),
-                            ],
-                          ),
-                          backgroundColor: AppTheme.errorRed,
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 4),
-                        ),
-                      );
-                    }
-                  }
-                },
-          icon: const GoogleIcon(size: 24),
-          label: const Text(
-            'Continue with Google',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: Colors.grey.shade300),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            ),
           ),
         ),
       ),

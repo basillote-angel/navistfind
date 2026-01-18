@@ -3,8 +3,6 @@ import 'package:navistfind/core/theme/app_theme.dart';
 import 'package:navistfind/features/auth/application/auth_provider.dart';
 import 'package:navistfind/core/utils/password_validator.dart';
 import 'package:navistfind/widgets/password_strength_indicator.dart';
-import 'package:navistfind/widgets/google_icon.dart';
-import 'package:navistfind/features/profile/application/profile_provider.dart';
 import 'package:navistfind/features/notifications/data/device_token_service.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -20,16 +18,40 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final fullNameController = TextEditingController();
   final emailController = TextEditingController();
+  final contactNumberController = TextEditingController();
+  final otherUserTypeController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  String? _selectedUserType;
+  String? _selectedGradeLevel;
+
+  final List<String> _userTypes = [
+    'Student',
+    'Teacher',
+    'Parent',
+    'Staff',
+    'Other',
+  ];
+
+  final List<String> _gradeLevels = [
+    'Grade 7',
+    'Grade 8',
+    'Grade 9',
+    'Grade 10',
+    'Grade 11',
+    'Grade 12',
+  ];
+
   @override
   void dispose() {
     fullNameController.dispose();
     emailController.dispose();
+    contactNumberController.dispose();
+    otherUserTypeController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
@@ -187,6 +209,215 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                   const SizedBox(height: 16),
 
+                  // Contact Number input (optional)
+                  TextFormField(
+                    controller: contactNumberController,
+                    decoration: InputDecoration(
+                      labelText: 'Contact Number (Optional)',
+                      hintText: '09XXXXXXXXX',
+                      prefixIcon: Icon(
+                        Icons.phone_outlined,
+                        color: Colors.grey.shade600,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(
+                          color: AppTheme.primaryBlue,
+                          width: 2,
+                        ),
+                      ),
+                      floatingLabelStyle: TextStyle(
+                        color: AppTheme.primaryBlue,
+                      ),
+                      contentPadding: const EdgeInsets.all(16),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // User Type Dropdown
+                  DropdownButtonFormField<String>(
+                    value: _selectedUserType,
+                    decoration: InputDecoration(
+                      labelText: 'User Type',
+                      prefixIcon: Icon(
+                        Icons.person_pin_outlined,
+                        color: Colors.grey.shade600,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusMedium,
+                        ),
+                        borderSide: BorderSide(
+                          color: AppTheme.primaryBlue,
+                          width: 2,
+                        ),
+                      ),
+                      floatingLabelStyle: TextStyle(
+                        color: AppTheme.primaryBlue,
+                      ),
+                      contentPadding: const EdgeInsets.all(16),
+                    ),
+                    items: _userTypes.map((type) {
+                      return DropdownMenuItem(
+                        value: type,
+                        child: Text(type),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedUserType = value;
+                        if (value != 'Student') {
+                          _selectedGradeLevel = null;
+                        }
+                        if (value != 'Other') {
+                          otherUserTypeController.clear();
+                        }
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please select a user type';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  // Grade Level Dropdown (shown only for Students)
+                  if (_selectedUserType == 'Student') ...[
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedGradeLevel,
+                      decoration: InputDecoration(
+                        labelText: 'Grade Level',
+                        prefixIcon: Icon(
+                          Icons.school_outlined,
+                          color: Colors.grey.shade600,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                          borderSide: BorderSide(
+                            color: AppTheme.primaryBlue,
+                            width: 2,
+                          ),
+                        ),
+                        floatingLabelStyle: TextStyle(
+                          color: AppTheme.primaryBlue,
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                      ),
+                      items: _gradeLevels.map((grade) {
+                        return DropdownMenuItem(
+                          value: grade,
+                          child: Text(grade),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedGradeLevel = value;
+                        });
+                      },
+                      validator: (value) {
+                        if (_selectedUserType == 'Student' &&
+                            (value == null || value.isEmpty)) {
+                          return 'Please select your grade level';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+
+                  // Other User Type Text Field (shown only for "Other")
+                  if (_selectedUserType == 'Other') ...[
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: otherUserTypeController,
+                      decoration: InputDecoration(
+                        labelText: 'Please specify',
+                        hintText: 'Enter your user type',
+                        prefixIcon: Icon(
+                          Icons.edit_outlined,
+                          color: Colors.grey.shade600,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusMedium,
+                          ),
+                          borderSide: BorderSide(
+                            color: AppTheme.primaryBlue,
+                            width: 2,
+                          ),
+                        ),
+                        floatingLabelStyle: TextStyle(
+                          color: AppTheme.primaryBlue,
+                        ),
+                        contentPadding: const EdgeInsets.all(16),
+                      ),
+                      validator: (value) {
+                        if (_selectedUserType == 'Other' &&
+                            (value == null || value.isEmpty)) {
+                          return 'Please specify your user type';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
                   // Password input with visibility toggle and strength indicator
                   TextFormField(
                     controller: passwordController,
@@ -341,14 +572,39 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 final error = await ref
                                     .read(authProvider)
                                     .register(
-                                      fullNameController.text.trim(),
-                                      emailController.text.trim(),
-                                      passwordController.text.trim(),
+                                      name: fullNameController.text.trim(),
+                                      email: emailController.text.trim(),
+                                      password: passwordController.text.trim(),
+                                      userType: _selectedUserType!,
+                                      gradeLevel: _selectedUserType == 'Student'
+                                          ? _selectedGradeLevel
+                                          : null,
+                                      otherUserType: _selectedUserType == 'Other'
+                                          ? otherUserTypeController.text.trim()
+                                          : null,
+                                      contactNumber: contactNumberController
+                                              .text
+                                              .trim()
+                                              .isNotEmpty
+                                          ? contactNumberController.text.trim()
+                                          : null,
                                     );
                                 ref.read(registerStateProvider.notifier).state =
                                     false;
 
                                 if (error == null) {
+                                  // Register device token after successful registration
+                                  try {
+                                    final fcmToken = await FirebaseMessaging
+                                        .instance
+                                        .getToken();
+                                    if (fcmToken != null) {
+                                      await DeviceTokenService().registerToken(
+                                        fcmToken,
+                                      );
+                                    }
+                                  } catch (_) {}
+
                                   if (mounted) {
                                     Navigator.pushReplacementNamed(
                                       context,
@@ -432,128 +688,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Divider with "OR"
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: AppTheme.bodySmall.copyWith(
-                            color: AppTheme.textGray,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Google Sign-In Button
-                  SizedBox(
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed: isLoading
-                          ? null
-                          : () async {
-                              ref.read(registerStateProvider.notifier).state =
-                                  true;
-                              final error = await ref
-                                  .read(authProvider)
-                                  .signInWithGoogle();
-                              ref.read(registerStateProvider.notifier).state =
-                                  false;
-
-                              if (error == null) {
-                                // Register device token after successful Google sign-in
-                                try {
-                                  final fcmToken = await FirebaseMessaging
-                                      .instance
-                                      .getToken();
-                                  if (fcmToken != null) {
-                                    await DeviceTokenService().registerToken(
-                                      fcmToken,
-                                    );
-                                  }
-                                } catch (_) {}
-
-                                ref.invalidate(profileInfoProvider);
-                                ref.invalidate(postedItemsProvider);
-
-                                if (mounted) {
-                                  Navigator.pushReplacementNamed(
-                                    context,
-                                    AppRoutes.home,
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.check_circle_outline,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                          SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              'Registered with Google successfully',
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      backgroundColor: AppTheme.successGreen,
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                }
-                              } else if (error != 'Sign-in was canceled') {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.error_outline,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(child: Text(error)),
-                                        ],
-                                      ),
-                                      backgroundColor: AppTheme.errorRed,
-                                      behavior: SnackBarBehavior.floating,
-                                      duration: const Duration(seconds: 4),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                      icon: const GoogleIcon(size: 24),
-                      label: const Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.radiusMedium,
-                          ),
-                        ),
-                      ),
                     ),
                   ),
 

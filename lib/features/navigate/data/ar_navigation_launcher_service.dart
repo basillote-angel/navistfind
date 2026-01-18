@@ -2,278 +2,106 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ARNavigationLauncherService {
-  // Unity AR app package name - update this with your actual Unity app package name
-  static const String _unityAppPackageName = 'com.navistfind.ARNav';
+  // Unity AR app package name (from Unity ProjectSettings)
+  static const String _unityAppPackageName = 'com.UnityTechnologies.com.unity.template.urpblank';
 
-  // Unity app Play Store URL - update this with your actual Play Store URL
+  // Unity app Play Store URL (update when published)
   static const String _unityAppPlayStoreUrl =
-      'https://play.google.com/store/apps/details?id=com.navistfind.ARNav';
+      'https://play.google.com/store/apps/details?id=com.UnityTechnologies.com.unity.template.urpblank';
 
   // ARCore package name for checking support
   static const String _arcorePackageName = 'com.google.ar.core';
 
-  /// Check if device supports ARCore and launch Unity AR app
+  /// Launch Unity AR app directly (skip ARCore check - let Unity handle it)
   static Future<void> launchARNavigation(BuildContext context) async {
-    // First check ARCore support
-    if (!await _isARCoreSupported()) {
-      _showARNotSupportedDialog(context);
-      return;
-    }
+    debugPrint('Attempting to launch Unity AR app...');
+    debugPrint('Package name: $_unityAppPackageName');
 
-    // Try to launch Unity app directly (bypass detection issues)
+    bool launched = false;
+    String? lastError;
+
+    // Method 1: Use external_app_launcher (most reliable for direct package launch)
     try {
-      debugPrint('Attempting to launch Unity AR app directly...');
-      await _launchUnityApp();
-    } catch (e) {
-      debugPrint('Direct launch failed, trying intent-based launch: $e');
-      // If direct launch fails, try intent-based launch
-      await _launchUnityAppViaIntent();
-    }
-  }
-
-  /// Check if device supports ARCore
-  static Future<bool> _isARCoreSupported() async {
-    if (Platform.isAndroid) {
-      try {
-        // Check if ARCore is available
-        final isInstalled = await LaunchApp.isAppInstalled(
-          androidPackageName: _arcorePackageName,
-        );
-
-        if (isInstalled) {
-          return true;
-        }
-
-        // Check if device supports ARCore but it's not installed
-        // This would require additional device capability checking
-        // For now, we'll use a simple check
-        return await _checkARCoreCompatibility();
-      } catch (e) {
-        return false;
-      }
-    }
-    return false;
-  }
-
-  /// Check ARCore compatibility using device info
-  static Future<bool> _checkARCoreCompatibility() async {
-    try {
-      // This is a simplified check - in production you might want to use
-      // device_info_plus package for more detailed device capability checking
-      return true; // Assume compatible for now
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Check if Unity AR app is installed
-  static Future<bool> _isUnityAppInstalled() async {
-    try {
-      return await LaunchApp.isAppInstalled(
-        androidPackageName: _unityAppPackageName,
-      );
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// Launch Unity AR app with multiple fallback methods
-  static Future<void> _launchUnityApp() async {
-    debugPrint('Attempting to launch Unity AR app: $_unityAppPackageName');
-
-    // Method 1: Try LaunchApp.openApp
-    try {
-      debugPrint('Method 1: Trying LaunchApp.openApp...');
-      await LaunchApp.openApp(
+      debugPrint('Method 1: Trying external_app_launcher...');
+      final result = await LaunchApp.openApp(
         androidPackageName: _unityAppPackageName,
         openStore: false,
       );
-      debugPrint('✅ Unity app launched successfully via LaunchApp');
+      debugPrint('external_app_launcher result: $result');
+      // If no exception, assume success
+      launched = true;
       return;
     } catch (e) {
-      debugPrint('❌ LaunchApp.openApp failed: $e');
+      lastError = e.toString();
+      debugPrint('❌ external_app_launcher failed: $e');
     }
 
-    // Method 2: Try LaunchApp.isAppInstalled + openApp
-    try {
-      debugPrint('Method 2: Trying LaunchApp.isAppInstalled...');
-      bool isInstalled = await LaunchApp.isAppInstalled(
-        androidPackageName: _unityAppPackageName,
-      );
-      if (isInstalled) {
-        debugPrint('✅ Unity app is installed, trying to open...');
-        await LaunchApp.openApp(
-          androidPackageName: _unityAppPackageName,
-          openStore: false,
-        );
-        debugPrint('✅ Unity app opened successfully');
-        return;
-      } else {
-        debugPrint('❌ Unity app not found via LaunchApp.isAppInstalled');
-      }
-    } catch (e) {
-      debugPrint('❌ LaunchApp.isAppInstalled failed: $e');
-    }
-
-    // Method 3: Try Android Intent with different actions
-    try {
-      debugPrint('Method 3: Trying Android Intent...');
-      await _launchUnityAppViaIntent();
-      return;
-    } catch (e) {
-      debugPrint('❌ Android Intent failed: $e');
-    }
-
-    // Method 4: Try alternative package names
-    try {
-      debugPrint('Method 4: Trying alternative package names...');
-      await _tryAlternativePackageNames();
-      return;
-    } catch (e) {
-      debugPrint('❌ Alternative package names failed: $e');
-    }
-
-    // All methods failed
-    debugPrint('❌ All launch methods failed. Unity app cannot be launched.');
-    throw Exception('Failed to launch Unity AR app after trying all methods');
-  }
-
-  /// Fallback method to launch Unity app via Android Intent
-  static Future<void> _launchUnityAppViaIntent() async {
-    try {
-      debugPrint('Trying Android Intent launch...');
-
-      // Try different intent actions
-      List<String> actions = [
-        'action_view',
-        'android.intent.action.VIEW',
-        'android.intent.action.MAIN',
-      ];
-
-      for (String action in actions) {
-        try {
-          debugPrint('Trying action: $action');
-          final AndroidIntent intent = AndroidIntent(
-            action: action,
-            package: _unityAppPackageName,
-            data: 'navistfind://ar-navigation',
-          );
-          await intent.launch();
-          debugPrint(
-            '✅ Unity app launched via Android Intent with action: $action',
-          );
-          return;
-        } catch (e) {
-          debugPrint('❌ Action $action failed: $e');
-        }
-      }
-
-      throw Exception('All Android Intent actions failed');
-    } catch (e) {
-      debugPrint('❌ Android Intent launch completely failed: $e');
-      rethrow;
-    }
-  }
-
-  /// Try alternative package names in case Unity has different naming
-  static Future<void> _tryAlternativePackageNames() async {
-    List<String> alternativePackages = [
-      'com.navistfind.ARNav',
-      'com.navistfind.arnav',
-      'com.navistfind.ar.navigation',
-      'com.example.navistfind.ar.navigation',
-      'com.navistfind.arnavigation',
-    ];
-
-    for (String package in alternativePackages) {
+    // Method 2: Try Android Intent to launch specific package's main activity
+    if (!launched) {
       try {
-        debugPrint('Trying alternative package: $package');
-        bool isInstalled = await LaunchApp.isAppInstalled(
-          androidPackageName: package,
+        debugPrint('Method 2: Trying launchPackage intent...');
+        final intent = AndroidIntent(
+          action: 'android.intent.action.MAIN',
+          package: _unityAppPackageName,
+          flags: <int>[
+            Flag.FLAG_ACTIVITY_NEW_TASK,
+            268435456, // FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+          ],
         );
-        if (isInstalled) {
-          debugPrint('✅ Found Unity app with package: $package');
-          await LaunchApp.openApp(
-            androidPackageName: package,
-            openStore: false,
-          );
-          debugPrint('✅ Unity app launched with alternative package: $package');
-          return;
-        }
+        await intent.launchChooser('Open with');
+        debugPrint('✅ Launched via launchPackage intent');
+        launched = true;
+        return;
       } catch (e) {
-        debugPrint('❌ Alternative package $package failed: $e');
+        lastError = e.toString();
+        debugPrint('❌ launchPackage intent failed: $e');
       }
     }
 
-    throw Exception('No alternative package names worked');
+    // All methods failed - show error dialog
+    if (!launched && context.mounted) {
+      _showLaunchFailedDialog(context, lastError);
+    }
   }
 
-  /// Show dialog when AR is not supported
-  static void _showARNotSupportedDialog(BuildContext context) {
+  /// Show dialog when launch fails
+  static void _showLaunchFailedDialog(BuildContext context, String? error) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text(
-            'AR Navigation Not Supported',
+            'Could Not Open AR App',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Color(0xFF1C2A40),
             ),
           ),
-          content: const Text(
-            'Your device does not support AR Navigation. You can still use the map view for guidance.',
-            style: TextStyle(fontSize: 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Unable to launch the NavistFind AR app. Please make sure it is installed on your device.',
+                style: TextStyle(fontSize: 15),
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Error: $error',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'OK',
-                style: TextStyle(
-                  color: Color(0xFF1C2A40),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Show dialog to install AR module
-  static void _showInstallARModuleDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            'Install AR Module',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1C2A40),
-            ),
-          ),
-          content: const Text(
-            'AR Navigation requires the NavistFind AR module. Would you like to install it now?',
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -281,16 +109,10 @@ class ARNavigationLauncherService {
                 _openPlayStore();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1C2A40),
+                backgroundColor: const Color(0xFF1F6FEB),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
               ),
-              child: const Text(
-                'Install',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              child: const Text('Download App'),
             ),
           ],
           shape: RoundedRectangleBorder(
@@ -301,27 +123,58 @@ class ARNavigationLauncherService {
     );
   }
 
+  /// Check if device supports ARCore
+  static Future<bool> _isARCoreSupported() async {
+    if (Platform.isAndroid) {
+      try {
+        final isInstalled = await LaunchApp.isAppInstalled(
+          androidPackageName: _arcorePackageName,
+        );
+        return isInstalled;
+      } catch (e) {
+        return true; // Assume supported if check fails
+      }
+    }
+    return false;
+  }
+
+  /// Check if Unity AR app is installed
+  static Future<bool> _isUnityAppInstalled() async {
+    try {
+      // Try multiple methods to check if app is installed
+      final isInstalled = await LaunchApp.isAppInstalled(
+        androidPackageName: _unityAppPackageName,
+      );
+      if (isInstalled) return true;
+
+      // Also try to check via canLaunchUrl
+      final uri = Uri.parse('android-app://$_unityAppPackageName');
+      if (await canLaunchUrl(uri)) return true;
+
+      return false;
+    } catch (e) {
+      debugPrint('Error checking if Unity app is installed: $e');
+      return false;
+    }
+  }
+
   /// Open Play Store to install Unity AR app
   static Future<void> _openPlayStore() async {
     try {
-      // Use Android Intent to open Play Store
-      final AndroidIntent intent = AndroidIntent(
-        action: 'action_view',
+      final playStoreUri = Uri.parse(_unityAppPlayStoreUrl);
+      if (await canLaunchUrl(playStoreUri)) {
+        await launchUrl(playStoreUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+
+      // Fallback: Use Android Intent
+      final intent = AndroidIntent(
+        action: 'android.intent.action.VIEW',
         data: _unityAppPlayStoreUrl,
-        package: 'com.android.vending', // Play Store package
       );
       await intent.launch();
     } catch (e) {
       debugPrint('Failed to open Play Store: $e');
-      // Fallback: try to open with external app launcher
-      try {
-        await LaunchApp.openApp(
-          androidPackageName: 'com.android.vending',
-          openStore: false,
-        );
-      } catch (fallbackError) {
-        debugPrint('Fallback Play Store launch failed: $fallbackError');
-      }
     }
   }
 

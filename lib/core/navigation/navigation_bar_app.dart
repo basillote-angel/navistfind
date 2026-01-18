@@ -1,5 +1,5 @@
 import 'package:navistfind/features/home/presentation/home_page.dart';
-import 'package:navistfind/features/navigate/presentation/campus_map_screen.dart';
+import 'package:navistfind/features/navigate/presentation/ar_launcher_screen.dart';
 import 'package:navistfind/features/profile/presentation/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:navistfind/features/lost_found/item/presentation/lost_and_found.dart';
@@ -80,7 +80,7 @@ class NavigationBarAppState extends State<NavigationBarApp> {
     return [
       const HomePage(),
       LostAndFoundScreen(initialTabIndex: widget.lostFoundInitialTabIndex),
-      const CampusMapScreen(),
+      const ARLauncherScreen(),
       const ProfileScreen(),
     ];
   }

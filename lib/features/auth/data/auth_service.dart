@@ -89,11 +89,38 @@ class AuthService {
     }
   }
 
-  Future<String?> register(String name, String email, String password) async {
+  Future<String?> register({
+    required String name,
+    required String email,
+    required String password,
+    required String userType,
+    String? gradeLevel,
+    String? otherUserType,
+    String? contactNumber,
+  }) async {
     try {
+      final Map<String, dynamic> data = {
+        'name': name,
+        'email': email,
+        'password': password,
+        'user_type': userType,
+      };
+
+      if (userType == 'Student' && gradeLevel != null) {
+        data['grade_level'] = gradeLevel;
+      }
+
+      if (userType == 'Other' && otherUserType != null) {
+        data['other_user_type'] = otherUserType;
+      }
+
+      if (contactNumber != null && contactNumber.isNotEmpty) {
+        data['contact_number'] = contactNumber;
+      }
+
       final response = await ApiClient.client.post(
         '/api/register',
-        data: {'name': name, 'email': email, 'password': password},
+        data: data,
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

@@ -6,12 +6,12 @@ class Constants {
 // class Constants {
 //   static const String apiBaseUrl = String.fromEnvironment(
 //     'API_BASE_URL',
-//     defaultValue: 'http://10.28.217.135:8001',
+//     defaultValue: 'http://10.54.77.142:8001',
 //   );
 
 //   static const String backendBaseUrl = String.fromEnvironment(
 //     'BACKEND_BASE_URL',
-//     defaultValue: 'http://10.28.217.135:8000',
+//     defaultValue: 'http://10.54.77.142:8000',
 //   );
 
 //   static const String baseUrl = backendBaseUrl;
